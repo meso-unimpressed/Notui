@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>Notui</id>
+    <version>$version$-beta</version>
+    <title>Notui</title>
+    <authors>David Mórász (microdee)</authors>
+    <owners>David Mórász (microdee)</owners>
+    <!--licenseUrl>http://LICENSE_URL_HERE_OR_DELETE_THIS_LINE</licenseUrl>
+    <iconUrl>http://ICON_URL_HERE_OR_DELETE_THIS_LINE</iconUrl-->
+    <projectUrl>https://github.com/microdee/Notui</projectUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>Notui is a simple renderless 3D first UI interaction framework designed for but not limited to large scale media application. It's working with element prototypes and instantiate them within contexts. Behaviors can be assigned to elements which will be executed in the element mainloop.</description>
+    <releaseNotes>none</releaseNotes>
+    <copyright>Copyright © 2017 by David Mórász</copyright>
+    <tags>ui gui touch </tags>
+  </metadata>
+</package>
