@@ -32,7 +32,7 @@ namespace Notui
     /// <summary>
     /// Simple element base implementing some useful management functions
     /// </summary>
-    public abstract class NotuiElement : IElementCommon, ICloneable<NotuiElement>, IUpdateable<ElementPrototype>, IMainlooping //, IUpdateable<NotuiElement>
+    public abstract class NotuiElement : IElementCommon, ICloneable<NotuiElement>, IUpdateable<ElementPrototype>, IMainlooping
     {
         private Matrix4x4 _interactionMatrix;
         private Matrix4x4 _displayMatrix;
@@ -472,24 +472,6 @@ namespace Notui
             Value?.UpdateFrom(other.Value);
             UpdateChildren(true, other.Children.Values.ToArray());
         }
-
-        /*
-        public void UpdateFrom(NotuiElement other)
-        {
-            UpdateSimple(other);
-            Value?.UpdateFrom(other.Value);
-            Children.Clear();
-
-            OnChildrenUpdated?.Invoke(this, new ChildrenUpdatedEventArgs
-            {
-                Elements = other.Children.Values.ToArray()
-            });
-            foreach (var child in other.Children.Values)
-            {
-                Children.Add(child.Id, child.Copy());
-            }
-        }
-        */
 
         /// <summary>
         /// Base constructor awaiting an element prototype, a context to create element into and an optional parent element

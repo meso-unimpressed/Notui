@@ -130,6 +130,7 @@ namespace Notui
             }
             return element.Opaq(path, separator,
                 el => useName ? el.Children.Values.Select(c => c.Name) : el.Children.Keys,
+                el => useName ? el.Children.Values.Select(c => c.Name) : el.Children.Keys,
                 GetChildren, GetChildren
             );
         }
@@ -144,6 +145,7 @@ namespace Notui
                 return Enumerable.Empty<ElementPrototype>();
             }
             return element.Opaq(path, separator,
+                el => useName ? el.Children.Values.Select(c => c.Name) : el.Children.Keys,
                 el => useName ? el.Children.Values.Select(c => c.Name) : el.Children.Keys,
                 GetChildren, GetChildren
             );
