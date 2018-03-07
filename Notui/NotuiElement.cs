@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
 using md.stdl.Interaction;
+using md.stdl.Interfaces;
 using md.stdl.Time;
 
 namespace Notui
@@ -31,7 +32,7 @@ namespace Notui
     /// <summary>
     /// Simple element base implementing some useful management functions
     /// </summary>
-    public abstract class NotuiElement : IElementCommon, ICloneable<NotuiElement>, IUpdateable<ElementPrototype> //, IUpdateable<NotuiElement>
+    public abstract class NotuiElement : IElementCommon, ICloneable<NotuiElement>, IUpdateable<ElementPrototype>, IMainlooping //, IUpdateable<NotuiElement>
     {
         private Matrix4x4 _interactionMatrix;
         private Matrix4x4 _displayMatrix;
@@ -377,7 +378,7 @@ namespace Notui
         /// <remarks>
         /// The context call this function of all flattened elements in parallel regardless of the element hierarchy, you should take this into account when overriding this function or developing behaviors. You MUST NOT call the Mainloop method of the children elements yourself because the context already does so (unless you are really desperate).
         /// </remarks>
-        public void MainLoop()
+        public void Mainloop(float deltatime)
         {
             OnMainLoopBegin?.Invoke(this, EventArgs.Empty);
 

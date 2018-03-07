@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Numerics;
+using md.stdl.Interfaces;
 using md.stdl.Mathematics;
 using Matrix4x4 = System.Numerics.Matrix4x4;
 
@@ -195,7 +196,7 @@ namespace Notui
         /// <param name="id">a unique id of the subscriber</param>
         /// <param name="action">A single argument action to be run where that argument is the sender transformation</param>
         /// <remarks>
-        /// This will fire on all assignments at position, rotation or scale. Do not do anything expensive here. This is mainly used to invalidate matrix caches on GuiElements
+        /// This will fire on all assignments at position, rotation or scale. Do not do anything expensive here. This is mainly used to invalidate matrix caches on NotuiElements
         /// </remarks>
         public void SubscribeToChange(string id, Action<ElementTransformation> action)
         {

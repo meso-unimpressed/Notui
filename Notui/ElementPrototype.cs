@@ -6,6 +6,7 @@ using System.Linq;
 using System.Numerics;
 using System.Reflection;
 using md.stdl.Coding;
+using md.stdl.Interfaces;
 using md.stdl.Time;
 
 namespace Notui

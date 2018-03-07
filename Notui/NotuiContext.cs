@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using md.stdl.Interaction;
+using md.stdl.Interfaces;
 using md.stdl.Mathematics;
 
 namespace Notui
@@ -18,10 +19,11 @@ namespace Notui
         public float Force;
     }
 
+    /// <inheritdoc cref="IMainlooping"/>
     /// <summary>
     /// Notui Context to manage GuiElements and Touches
     /// </summary>
-    public class NotuiContext
+    public class NotuiContext : IMainlooping
     {
         /// <summary>
         /// Use PLINQ or not?
@@ -102,13 +104,17 @@ namespace Notui
         public List<NotuiElement> FlatElements { get; } = new List<NotuiElement>();
 
         /// <summary>
-        /// Call this function every frame in your own main loop
+        /// Input touch prototypes for the next mainloop
         /// </summary>
-        /// <param name="inputTouches">List of touch prototypes present this frame</param>
-        /// <param name="deltaT">Delta time in seconds (so 0.001 is 1 ms)</param>
-        public void Mainloop(List<TouchPrototype> inputTouches, float deltaT)
+        public List<TouchPrototype> InputTouches { get; set; }
+
+        public event EventHandler OnMainLoopBegin;
+        public event EventHandler OnMainLoopEnd;
+        
+        public void Mainloop(float deltatime)
         {
-            // Calculating globals
+            OnMainLoopBegin?.Invoke(this, EventArgs.Empty);
+
             Matrix4x4.Invert(AspectRatio, out var invasp);
             //Matrix4x4.Invert(Projection, out var invproj);
             Matrix4x4.Invert(View, out var invview);
@@ -118,7 +124,7 @@ namespace Notui
             ViewInverse = invview;
             ProjectionWithAspectRatio = aspproj;
             ProjectionWithAspectRatioInverse = invaspproj;
-            DeltaTime = deltaT;
+            DeltaTime = deltatime;
 
             Matrix4x4.Decompose(invview, out var vscale, out var vquat, out var vpos);
             ViewOrientation = vquat;
@@ -133,11 +139,10 @@ namespace Notui
             {
                 Touches.TryRemove(tid, out var dummy);
             }
-
-            // Touches mainloop and reset their hits
+            
             Touches.Values.ForEach(touch =>
             {
-                touch.Mainloop();
+                touch.Mainloop(deltatime);
                 touch.AttachedObject = null;
             });
 
@@ -153,36 +158,38 @@ namespace Notui
                 }
                 rebuild = true;
                 _elementsDeleted = false;
+                OnElementsDeleted?.Invoke(this, EventArgs.Empty);
             }
             if (_elementsUpdated)
             {
                 rebuild = true;
                 _elementsUpdated = false;
+                OnElementsUpdated?.Invoke(this, EventArgs.Empty);
             }
             if(rebuild) BuildFlatList();
 
             // Process input touches
-            foreach (var touch in inputTouches)
+            if (InputTouches != null)
             {
-                TouchContainer<NotuiElement[]> tt;
-                if (Touches.ContainsKey(touch.Id))
+                foreach (var touch in InputTouches)
                 {
-                    tt = Touches[touch.Id];
+                    TouchContainer<NotuiElement[]> tt;
+                    if (Touches.ContainsKey(touch.Id))
+                    {
+                        tt = Touches[touch.Id];
+                    }
+                    else
+                    {
+                        tt = new TouchContainer<NotuiElement[]>(touch.Id) { Force = touch.Force };
+                        Touches.TryAdd(tt.Id, tt);
+                    }
+                    tt.Update(touch.Point, deltatime);
                 }
-                else
-                {
-                    tt = new TouchContainer<NotuiElement[]>(touch.Id) { Force = touch.Force };
-                    Touches.TryAdd(tt.Id, tt);
-                }
-                tt.Update(touch.Point, deltaT);
             }
 
             // preparing elements for hittest
             foreach (var element in FlatElements)
             {
-                //Matrix4x4.Decompose(element.DisplayMatrix, out var aelscale, out var aelrot, out var aelpos);
-                //var elpos = Vector4.Transform(new Vector4(aelpos, 1), View * aspproj);
-                //element.Depth = elpos.Z / elpos.W;
                 element.Hovering.Clear();
             }
 
@@ -232,12 +239,14 @@ namespace Notui
                 {
                     el.ProcessTouch(touch);
                 }
-                el.MainLoop();
+                el.Mainloop(deltatime);
             }
             if(UseParallel) FlatElements.AsParallel().ForAll(ProcessElements);
             else FlatElements.ForEach(ProcessElements);
+
+            OnMainLoopEnd?.Invoke(this, EventArgs.Empty);
         }
-        
+
         /// <summary>
         /// Instantiate new elements and update existing elements from the input prototypes. Optionally start the deletion of elements which are not present in the input array.
         /// </summary>
@@ -275,8 +284,8 @@ namespace Notui
         {
             foreach (var element in FlatElements)
             {
-                element.OnDeleting -= OnElementDeletion;
-                element.OnChildrenUpdated -= OnElementUpdate;
+                element.OnDeleting -= OnIndividualElementDeletion;
+                element.OnChildrenUpdated -= OnIndividualElementUpdate;
             }
             FlatElements.Clear();
             foreach (var element in RootElements.Values)
@@ -286,20 +295,20 @@ namespace Notui
 
             foreach (var element in FlatElements)
             {
-                element.OnDeleting += OnElementDeletion;
-                element.OnChildrenUpdated += OnElementUpdate;
+                element.OnDeleting += OnIndividualElementDeletion;
+                element.OnChildrenUpdated += OnIndividualElementUpdate;
             }
         }
 
         private bool _elementsDeleted;
         private bool _elementsUpdated;
 
-        private void OnElementUpdate(object sender, ChildrenUpdatedEventArgs childrenAddedEventArgs)
+        private void OnIndividualElementUpdate(object sender, ChildrenUpdatedEventArgs childrenAddedEventArgs)
         {
             _elementsUpdated = true;
         }
 
-        private void OnElementDeletion(object sender, EventArgs eventArgs)
+        private void OnIndividualElementDeletion(object sender, EventArgs eventArgs)
         {
             _elementsDeleted = true;
         }
@@ -315,5 +324,15 @@ namespace Notui
                 yield break;
             }
         }
+
+        /// <summary>
+        /// Fired when elements added or updated
+        /// </summary>
+        public event EventHandler OnElementsUpdated;
+
+        /// <summary>
+        /// Fired when elements got deleted
+        /// </summary>
+        public event EventHandler OnElementsDeleted;
     }
 }
