@@ -124,6 +124,12 @@ namespace Notui.Behaviors
         public bool SlideOnChildrenInteracting { get; set; }
 
         /// <summary>
+        /// (NotuiElement currElement): NotuiElement Children; Slide only on specific children filtered by a predicate function
+        /// </summary>
+        [BehaviorParameter]
+        public Func<NotuiElement, IEnumerable<NotuiElement>> SlideOnlyWithSpecificChildren { get; set; }
+
+        /// <summary>
         /// Slide only when this amount of touches interacting with the element
         /// </summary>
         [BehaviorParameter(Minimum = 1)]
@@ -297,14 +303,23 @@ namespace Notui.Behaviors
                     break;
             }
             
-            // Get state from element
-            var hasstate = IsStateAvailable(element);
-            var currstate = hasstate ? GetState<BehaviorState>(element) : new BehaviorState();
+            var currstate = IsStateAvailable(element) ? GetState<BehaviorState>(element) : new BehaviorState();
 
-            // Merge touches from children if SlideOnChildrenInteracting is true
-            var touches = element.Touching.Keys.ToList();
-            if(SlideOnChildrenInteracting)
-                AddChildrenTouches(element, touches);
+            List<TouchContainer<NotuiElement[]>> touches;
+            if (SlideOnlyWithSpecificChildren == null)
+            {
+                touches = element.Touching.Keys.ToList();
+                // Merge touches from children if SlideOnChildrenInteracting is true
+                if (SlideOnChildrenInteracting)
+                    AddChildrenTouches(element, touches);
+            }
+            else
+            {
+                touches = new List<TouchContainer<NotuiElement[]>>();
+                var selectedChildren = SlideOnlyWithSpecificChildren(element);
+                foreach (var child in selectedChildren)
+                    touches.AddRange(child.Touching.Keys);
+            }
 
             // Do interaction if there are minimum specified touches
             if(touches.Count >= MinimumTouches)
