@@ -118,5 +118,35 @@ namespace Notui
             prevpos = prpos;
             return crpos - prpos;
         }
+
+        public static List<NotuiElement> Opaq(this NotuiElement element, string path, string separator = "/", bool useName = true)
+        {
+            IEnumerable<NotuiElement> GetChildren(NotuiElement el, string k)
+            {
+                if(el.Children.Count == 0) return Enumerable.Empty<NotuiElement>();
+                if (useName) return el.Children.Values.Where(c => c.Name == k);
+                if (el.Children.ContainsKey(k)) return new[] { el.Children[k] };
+                return Enumerable.Empty<NotuiElement>();
+            }
+            return element.Opaq(path, separator,
+                el => useName ? el.Children.Values.Select(c => c.Name) : el.Children.Keys,
+                GetChildren, GetChildren
+            );
+        }
+
+        public static List<ElementPrototype> Opaq(this ElementPrototype element, string path, string separator = "/", bool useName = true)
+        {
+            IEnumerable<ElementPrototype> GetChildren(ElementPrototype el, string k)
+            {
+                if (el.Children.Count == 0) return Enumerable.Empty<ElementPrototype>();
+                if (useName) return el.Children.Values.Where(c => c.Name == k);
+                if (el.Children.ContainsKey(k)) return new[] { el.Children[k] };
+                return Enumerable.Empty<ElementPrototype>();
+            }
+            return element.Opaq(path, separator,
+                el => useName ? el.Children.Values.Select(c => c.Name) : el.Children.Keys,
+                GetChildren, GetChildren
+            );
+        }
     }
 }
