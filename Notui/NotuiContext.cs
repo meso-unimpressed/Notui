@@ -93,14 +93,17 @@ namespace Notui
         /// All the elements in this context including the children of the root elements recursively
         /// </summary>
         public List<NotuiElement> FlatElements { get; } = new List<NotuiElement>();
-
-        /// <summary>
-        /// Input touch prototypes for the next mainloop.
-        /// </summary>
-        public List<(Vector2 point, int id, float force)> InputTouches { get; set; }
-
+        
+        private readonly List<(Vector2 point, int id, float force)> _inputTouches = new List<(Vector2 point, int id, float force)>();
+        
         public event EventHandler OnMainLoopBegin;
         public event EventHandler OnMainLoopEnd;
+
+        public void SubmitTouches(IEnumerable<(Vector2, int, float)> touches)
+        {
+            _inputTouches.Clear();
+            _inputTouches.AddRange(touches);
+        }
         
         public void Mainloop(float deltatime)
         {
@@ -160,22 +163,19 @@ namespace Notui
             if(rebuild) BuildFlatList();
 
             // Process input touches
-            if (InputTouches != null)
+            foreach (var touch in _inputTouches)
             {
-                foreach (var touch in InputTouches)
+                TouchContainer<NotuiElement[]> tt;
+                if (Touches.ContainsKey(touch.id))
                 {
-                    TouchContainer<NotuiElement[]> tt;
-                    if (Touches.ContainsKey(touch.id))
-                    {
-                        tt = Touches[touch.id];
-                    }
-                    else
-                    {
-                        tt = new TouchContainer<NotuiElement[]>(touch.id) { Force = touch.force };
-                        Touches.TryAdd(tt.Id, tt);
-                    }
-                    tt.Update(touch.point, deltatime);
+                    tt = Touches[touch.id];
                 }
+                else
+                {
+                    tt = new TouchContainer<NotuiElement[]>(touch.id) { Force = touch.force };
+                    Touches.TryAdd(tt.Id, tt);
+                }
+                tt.Update(touch.point, deltatime);
             }
 
             // preparing elements for hittest
