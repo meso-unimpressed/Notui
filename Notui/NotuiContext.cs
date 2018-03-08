@@ -3,22 +3,13 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using md.stdl.Coding;
 using md.stdl.Interaction;
 using md.stdl.Interfaces;
 using md.stdl.Mathematics;
 
 namespace Notui
 {
-    /// <summary>
-    /// Stateless prototype of a TouchContainer
-    /// </summary>
-    public struct TouchPrototype
-    {
-        public Vector2 Point;
-        public int Id;
-        public float Force;
-    }
-
     /// <inheritdoc cref="IMainlooping"/>
     /// <summary>
     /// Notui Context to manage GuiElements and Touches
@@ -104,9 +95,9 @@ namespace Notui
         public List<NotuiElement> FlatElements { get; } = new List<NotuiElement>();
 
         /// <summary>
-        /// Input touch prototypes for the next mainloop
+        /// Input touch prototypes for the next mainloop.
         /// </summary>
-        public List<TouchPrototype> InputTouches { get; set; }
+        public List<(Vector2 point, int id, float force)> InputTouches { get; set; }
 
         public event EventHandler OnMainLoopBegin;
         public event EventHandler OnMainLoopEnd;
@@ -174,16 +165,16 @@ namespace Notui
                 foreach (var touch in InputTouches)
                 {
                     TouchContainer<NotuiElement[]> tt;
-                    if (Touches.ContainsKey(touch.Id))
+                    if (Touches.ContainsKey(touch.id))
                     {
-                        tt = Touches[touch.Id];
+                        tt = Touches[touch.id];
                     }
                     else
                     {
-                        tt = new TouchContainer<NotuiElement[]>(touch.Id) { Force = touch.Force };
+                        tt = new TouchContainer<NotuiElement[]>(touch.id) { Force = touch.force };
                         Touches.TryAdd(tt.Id, tt);
                     }
-                    tt.Update(touch.Point, deltatime);
+                    tt.Update(touch.point, deltatime);
                 }
             }
 
@@ -334,5 +325,37 @@ namespace Notui
         /// Fired when elements got deleted
         /// </summary>
         public event EventHandler OnElementsDeleted;
+
+        /// <summary>
+        /// Get elements with Opaq (from RootElements)
+        /// </summary>
+        /// <param name="path">Opaq path</param>
+        /// <param name="separator"></param>
+        /// <param name="usename">If true it will use Element names, otherwise their ID</param>
+        /// <returns></returns>
+        public List<NotuiElement> Opaq(string path, string separator = "/", bool usename = true)
+        {
+            IEnumerable<NotuiElement> GetChildren(NotuiContext context, string k)
+            {
+                if (context.RootElements.Count == 0) return Enumerable.Empty<NotuiElement>();
+                if (usename) return context.RootElements.Values.Where(c => c.Name == k);
+                if (context.RootElements.ContainsKey(k)) return new[] { context.RootElements[k] };
+                return Enumerable.Empty<NotuiElement>();
+            }
+            
+            var children = new List<NotuiElement>();
+            var nextpath = this.OpaqNonRecursive(path, children, children, separator,
+                context => usename ? RootElements.Values.Select(el => el.Name) : RootElements.Keys,
+                context => usename ? RootElements.Values.Select(el => el.Name) : RootElements.Keys,
+                GetChildren, GetChildren
+            );
+
+            var results = new List<NotuiElement>();
+
+            foreach (var child in children)
+                results.AddRange(child.Opaq(nextpath, separator, usename));
+
+            return results;
+        }
     }
 }
