@@ -350,6 +350,9 @@ namespace Notui
                 GetChildren, GetChildren
             );
 
+            if (string.IsNullOrWhiteSpace(nextpath))
+                return children;
+
             var results = new List<NotuiElement>();
 
             foreach (var child in children)
