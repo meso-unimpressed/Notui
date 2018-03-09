@@ -249,7 +249,7 @@ namespace Notui.Behaviors
             }
         }
 
-        private void AddChildrenTouches(NotuiElement element, List<TouchContainer<NotuiElement[]>> touches)
+        private void AddChildrenTouches(NotuiElement element, List<Touch> touches)
         {
             foreach (var child in element.Children.Values)
             {
@@ -305,7 +305,7 @@ namespace Notui.Behaviors
             
             var currstate = IsStateAvailable(element) ? GetState<BehaviorState>(element) : new BehaviorState();
 
-            List<TouchContainer<NotuiElement[]>> touches;
+            List<Touch> touches;
             if (SlideOnlyWithSpecificChildren == null)
             {
                 touches = element.Touching.Keys.ToList();
@@ -315,7 +315,7 @@ namespace Notui.Behaviors
             }
             else
             {
-                touches = new List<TouchContainer<NotuiElement[]>>();
+                touches = new List<Touch>();
                 var selectedChildren = SlideOnlyWithSpecificChildren(element);
                 foreach (var child in selectedChildren)
                     touches.AddRange(child.Touching.Keys);

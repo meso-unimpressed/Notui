@@ -19,7 +19,7 @@ namespace Notui
 
     public class TouchInteractionEventArgs : EventArgs
     {
-        public TouchContainer<NotuiElement[]> Touch;
+        public Touch Touch;
         public IntersectionPoint IntersectionPoint;
     }
 
@@ -84,20 +84,20 @@ namespace Notui
         /// <summary>
         /// List of touches interacting with this element which is managed by this element
         /// </summary>
-        public ConcurrentDictionary<TouchContainer<NotuiElement[]>, IntersectionPoint> Touching { get; set; } =
-            new ConcurrentDictionary<TouchContainer<NotuiElement[]>, IntersectionPoint>(new TouchEqualityComparer());
+        public ConcurrentDictionary<Touch, IntersectionPoint> Touching { get; set; } =
+            new ConcurrentDictionary<Touch, IntersectionPoint>(new TouchEqualityComparer());
         
         /// <summary>
         /// List of touches directly over this element which is managed by this element
         /// </summary>
-        public ConcurrentDictionary<TouchContainer<NotuiElement[]>, IntersectionPoint> Hitting { get; set; } =
-            new ConcurrentDictionary<TouchContainer<NotuiElement[]>, IntersectionPoint>(new TouchEqualityComparer());
+        public ConcurrentDictionary<Touch, IntersectionPoint> Hitting { get; set; } =
+            new ConcurrentDictionary<Touch, IntersectionPoint>(new TouchEqualityComparer());
 
         /// <summary>
         /// List of touches hovering this element which is managed by the context
         /// </summary>
-        public ConcurrentDictionary<TouchContainer<NotuiElement[]>, IntersectionPoint> Hovering { get; set; } =
-            new ConcurrentDictionary<TouchContainer<NotuiElement[]>, IntersectionPoint>(new TouchEqualityComparer());
+        public ConcurrentDictionary<Touch, IntersectionPoint> Hovering { get; set; } =
+            new ConcurrentDictionary<Touch, IntersectionPoint>(new TouchEqualityComparer());
 
         /// <summary>
         /// Elements which will inherit the transformation of this element
@@ -328,13 +328,13 @@ namespace Notui
         /// </summary>
         /// <param name="touch">Current touch</param>
         /// <returns>Return null when the element is not hit by the touch and return the intersection coordinates otherwise</returns>
-        public abstract IntersectionPoint HitTest(TouchContainer<NotuiElement[]> touch);
+        public abstract IntersectionPoint HitTest(Touch touch);
 
         /// <summary>
         /// Used for managing side effects of touch interaction
         /// </summary>
         /// <param name="touch">Current touch</param>
-        public virtual void ProcessTouch(TouchContainer<NotuiElement[]> touch)
+        public virtual void ProcessTouch(Touch touch)
         {
             var hit = Hovering.ContainsKey(touch);
             var eventargs = new TouchInteractionEventArgs
@@ -387,12 +387,19 @@ namespace Notui
 
             MainloopBegin();
 
-            var endtouches = (from touch in Touching.Keys where touch.ExpireFrames > Context.ConsiderReleasedAfter select touch).ToArray();
+            var endtouches = ( from touch in Touching.Keys
+                where touch.ExpireFrames > Context.ConsiderReleasedAfter && !touch.Pressed
+                select touch
+                ).ToArray();
+
             foreach (var touch in endtouches)
-            {
                 FireTouchEnd(touch);
-            }
-            var endhits = (from touch in Hitting.Keys where touch.ExpireFrames > Context.ConsiderReleasedAfter select touch).ToArray();
+
+            var endhits = ( from touch in Hitting.Keys
+                where touch.ExpireFrames > Context.ConsiderReleasedAfter
+                select touch
+                ).ToArray();
+
             foreach (var touch in endhits)
             {
                 var eventargs = new TouchInteractionEventArgs
@@ -496,25 +503,25 @@ namespace Notui
             Age.Start();
         }
 
-        protected void FireInteractionTouchBegin(TouchContainer<NotuiElement[]> touch)
+        protected void FireInteractionTouchBegin(Touch touch)
         {
-            if(touch.AgeFrames >= Context.ConsiderNewBefore) return;
+            if(touch.FramesSincePressed >= Context.ConsiderNewBefore) return;
             if(Touching.ContainsKey(touch)) return;
-            if(touch.Force < Context.MinimumForce) return;
+            if(!touch.Pressed) return;
 
             var eventargs = new TouchInteractionEventArgs { Touch = touch };
             if (Touching.Count == 0) OnInteractionBegin?.Invoke(this, eventargs);
             OnTouchBegin?.Invoke(this, eventargs);
             Touching.TryAdd(touch, Hovering[touch]);
         }
-        protected void FireInteractionEnd(TouchContainer<NotuiElement[]> touch)
+        protected void FireInteractionEnd(Touch touch)
         {
             if (Touching.Count == 0) OnInteractionEnd?.Invoke(this, new TouchInteractionEventArgs
             {
                 Touch = touch
             });
         }
-        protected void FireTouchEnd(TouchContainer<NotuiElement[]> touch)
+        protected void FireTouchEnd(Touch touch)
         {
             if (!Touching.ContainsKey(touch)) return;
             Touching.TryRemove(touch, out var dummy);

@@ -81,8 +81,8 @@ namespace Notui
         /// <summary>
         /// All the touches in this context
         /// </summary>
-        public ConcurrentDictionary<int, TouchContainer<NotuiElement[]>> Touches { get; } =
-            new ConcurrentDictionary<int, TouchContainer<NotuiElement[]>>();
+        public ConcurrentDictionary<int, Touch> Touches { get; } =
+            new ConcurrentDictionary<int, Touch>();
 
         /// <summary>
         /// Elements in this context without a parent (or Root elements)
@@ -133,12 +133,13 @@ namespace Notui
             {
                 Touches.TryRemove(tid, out var dummy);
             }
-            
-            Touches.Values.ForEach(touch =>
+
+            foreach (var touch in Touches.Values)
             {
                 touch.Mainloop(deltatime);
-                touch.AttachedObject = null;
-            });
+                touch.HittingElements.Clear();
+                touch.Press(MinimumForce);
+            }
 
             // Scan through elements if any of them wants to be killed or if there are new ones
             bool rebuild = false;
@@ -165,14 +166,14 @@ namespace Notui
             // Process input touches
             foreach (var touch in _inputTouches)
             {
-                TouchContainer<NotuiElement[]> tt;
+                Touch tt;
                 if (Touches.ContainsKey(touch.id))
                 {
                     tt = Touches[touch.id];
                 }
                 else
                 {
-                    tt = new TouchContainer<NotuiElement[]>(touch.id) { Force = touch.force };
+                    tt = new Touch(touch.id) { Force = touch.force };
                     Touches.TryAdd(tt.Id, tt);
                 }
                 tt.Update(touch.point, deltatime);
@@ -185,7 +186,7 @@ namespace Notui
             }
 
             // look at which touches hit which element
-            void ProcessTouches(TouchContainer<NotuiElement[]> touch)
+            void ProcessTouches(Touch touch)
             {
                 // Transform touches into world
                 Coordinates.GetPointWorldPosDir(touch.Point, invaspproj, invview, out var tpw, out var tpd);
@@ -213,11 +214,11 @@ namespace Notui
 
                 // Add the touch and the corresponding intersection point to the interacting elements
                 // and attach those elements to the touch too.
-                touch.AttachedObject = passedintersections.Select(insec =>
+                touch.HittingElements.AddRange(passedintersections.Select(insec =>
                 {
                     insec.Element.Hovering.TryAdd(touch, insec);
                     return insec.Element;
-                }).ToArray();
+                }));
 
             }
             if(UseParallel) Touches.Values.AsParallel().ForAll(ProcessTouches);

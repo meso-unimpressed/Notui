@@ -24,7 +24,7 @@ namespace Notui
         /// </summary>
         /// <param name="touch">The touch to be tested</param>
         /// <returns>If the touch hits then an Intersection point otherwise null</returns>
-        public IntersectionPoint PreparePlanarShapeHitTest(TouchContainer<NotuiElement[]> touch)
+        public IntersectionPoint PreparePlanarShapeHitTest(Touch touch)
         {
             // when first hit consider the display transformation then
             // for the rest of the interaction consider the interaction transform
@@ -63,7 +63,7 @@ namespace Notui
     /// </summary>
     public class RectangleElement : PlanarElement
     {
-        public override IntersectionPoint HitTest(TouchContainer<NotuiElement[]> touch)
+        public override IntersectionPoint HitTest(Touch touch)
         {
             var intersection = PreparePlanarShapeHitTest(touch);
             var phit = intersection != null;
@@ -95,7 +95,7 @@ namespace Notui
     /// </summary>
     public class CircleElement : PlanarElement
     {
-        public override IntersectionPoint HitTest(TouchContainer<NotuiElement[]> touch)
+        public override IntersectionPoint HitTest(Touch touch)
         {
             var intersection = PreparePlanarShapeHitTest(touch);
             var phit = intersection != null;
@@ -131,7 +131,7 @@ namespace Notui
         public float HoleRadius { get; set; } = 0;
         public float Cycles { get; set; } = 1;
 
-        public override IntersectionPoint HitTest(TouchContainer<NotuiElement[]> touch)
+        public override IntersectionPoint HitTest(Touch touch)
         {
             var intersection = PreparePlanarShapeHitTest(touch);
             var phit = intersection != null;
