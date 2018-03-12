@@ -138,7 +138,6 @@ namespace Notui
             {
                 touch.Mainloop(deltatime);
                 touch.HittingElements.Clear();
-                touch.Press(MinimumForce);
             }
 
             // Scan through elements if any of them wants to be killed or if there are new ones
@@ -177,6 +176,8 @@ namespace Notui
                     Touches.TryAdd(tt.Id, tt);
                 }
                 tt.Update(touch.point, deltatime);
+                tt.Force = touch.force;
+                tt.Press(MinimumForce);
             }
 
             // preparing elements for hittest
