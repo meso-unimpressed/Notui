@@ -388,7 +388,7 @@ namespace Notui
             MainloopBegin();
 
             var endtouches = ( from touch in Touching.Keys
-                where touch.ExpireFrames > Context.ConsiderReleasedAfter && !touch.Pressed
+                where touch.ExpireFrames > Context.ConsiderReleasedAfter || !touch.Pressed
                 select touch
                 ).ToArray();
 
@@ -414,6 +414,14 @@ namespace Notui
             Hit = Hitting.Count > 0;
             Touched = Touching.Count > 0;
 
+            foreach (var touch in Hitting.Keys)
+            {
+                var inters = HitTest(touch);
+                Hitting[touch] = inters;
+                if (Touching.ContainsKey(touch))
+                    Touching[touch] = inters;
+            }
+
             if (FadeInTime > 0)
             {
                 ElementFade = Math.Min(Math.Max(0, (float) Age.Elapsed.TotalSeconds / FadeInTime), 1);
@@ -433,7 +441,7 @@ namespace Notui
             if (FadeOutTime > 0)
             {
                 ElementFade *= Math.Min(Math.Max(0, 1 - (float)Dethklok.Elapsed.TotalSeconds / FadeOutTime), 1);
-                if (Dethklok.Elapsed.TotalSeconds > FadeOutTime)
+                if (Dethklok.Elapsed.TotalSeconds > FadeOutTime && Dethklok.IsRunning && Age.Elapsed.TotalSeconds > Context.DeltaTime)
                 {
                     ElementFade = 0;
                     if(!DeleteMe) OnDeleting?.Invoke(this, EventArgs.Empty);
@@ -546,13 +554,13 @@ namespace Notui
             }
             if (FadeOutTime > 0)
             {
-                OnDeletionStarted?.Invoke(this, EventArgs.Empty);
+                if(!Dethklok.IsRunning) OnDeletionStarted?.Invoke(this, EventArgs.Empty);
                 Dethklok.Start();
             }
             else
             {
                 ElementFade = 0;
-                OnDeleting?.Invoke(this, EventArgs.Empty);
+                if(Age.Elapsed.TotalSeconds > Context.DeltaTime) OnDeleting?.Invoke(this, EventArgs.Empty);
                 DeleteMe = true;
             }
         }
