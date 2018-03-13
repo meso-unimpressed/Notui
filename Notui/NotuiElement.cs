@@ -15,6 +15,7 @@ namespace Notui
         public Vector3 WorldSpace { get; set; }
         public Vector3 ElementSpace { get; set; }
         public NotuiElement Element { get; set; }
+        public Matrix4x4 Transformation => Matrix4x4.CreateTranslation(ElementSpace) * Element.DisplayMatrix;
     }
 
     public class TouchInteractionEventArgs : EventArgs
