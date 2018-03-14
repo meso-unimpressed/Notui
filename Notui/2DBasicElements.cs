@@ -35,11 +35,7 @@ namespace Notui
                 matrix,
                 out var ispoint,
                 out var planarpoint);
-            return hit ? new IntersectionPoint
-            {
-                WorldSpace = ispoint,
-                ElementSpace = planarpoint
-            } : null;
+            return hit ? new IntersectionPoint(ispoint, planarpoint, this) : null;
         }
 
         protected PlanarElement(ElementPrototype prototype, NotuiContext context, NotuiElement parent = null) :
