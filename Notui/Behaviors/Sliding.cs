@@ -2,10 +2,14 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Reactive.Linq;
+using System.Runtime.Remoting.Channels;
 using System.Text;
 using System.Threading.Tasks;
 using md.stdl.Interaction;
+using md.stdl.Interfaces;
 using md.stdl.Mathematics;
+using md.stdl.Time;
 using static System.Math;
 
 namespace Notui.Behaviors
@@ -14,33 +18,19 @@ namespace Notui.Behaviors
     /// <summary>
     /// Specifying a behavior where the element can be dragged, rotated and scaled freely or within constraints
     /// </summary>
-    public class SlidingBehavior : InteractionBehavior
+    public class SlidingBehavior : PlanarBehavior
     {
-        public enum SelectedPlane
-        {
-            /// <summary>
-            /// The plane parallel to the view and offset by the element's center position.
-            /// </summary>
-            ViewAligned,
 
-            /// <summary>
-            /// The plane defined by the elements DisplayMatrix
-            /// </summary>
-            OwnPlane,
-
-            /// <summary>
-            /// If exists the plane defined by the DisplayMatrix of the element's parent. Otherwise use ViewAligned
-            /// </summary>
-            ParentPlane
-        }
-
-        public class BehaviorState : AuxiliaryObject
+        public class BehaviorState : AuxiliaryObject, IMainlooping
         {
             public Vector2 DeltaPos = Vector2.Zero;
             public float DeltaAngle = 0;
             public float DeltaSize = 0;
 
             public float TotalAngle = 0;
+            public bool Flicking = false;
+
+            public Delay<Vector4> DelayedDeltas = new Delay<Vector4>(TimeSpan.FromSeconds(1.0));
 
             public override AuxiliaryObject Copy()
             {
@@ -61,6 +51,19 @@ namespace Notui.Behaviors
                 DeltaSize = bs.DeltaSize;
                 TotalAngle = bs.TotalAngle;
             }
+
+            public void Mainloop(float deltatime)
+            {
+                OnMainLoopBegin?.Invoke(this, EventArgs.Empty);
+                DelayedDeltas.Submit(new Vector4(DeltaPos, DeltaAngle, DeltaSize));
+                OnMainLoopEnd?.Invoke(this, EventArgs.Empty);
+            }
+
+            public event EventHandler OnMainLoopBegin;
+            public event EventHandler OnMainLoopEnd;
+
+            private IObservable<Vector4> _mainLoopObservable;
+            private IObservable<Vector4> _delayLine;
         }
 
         /// <summary>
@@ -109,27 +112,6 @@ namespace Notui.Behaviors
         public float RotationCoeffitient { get; set; } = 1.0f;
 
         /// <summary>
-        /// Slide element in the selected plane.
-        /// </summary>
-        /// <remarks>
-        /// If this is true then constraints will be also relative to the element's parent, instead of the world space.
-        /// </remarks>
-        [BehaviorParameter]
-        public SelectedPlane SlideInSelectedPlane { get; set; } = SelectedPlane.ViewAligned;
-
-        /// <summary>
-        /// Slide when children are hit as well
-        /// </summary>
-        [BehaviorParameter]
-        public bool SlideOnChildrenInteracting { get; set; }
-
-        /// <summary>
-        /// (NotuiElement currElement): NotuiElement Children; Slide only on specific children filtered by a predicate function
-        /// </summary>
-        [BehaviorParameter]
-        public Func<NotuiElement, IEnumerable<NotuiElement>> SlideOnlyWithSpecificChildren { get; set; }
-
-        /// <summary>
         /// Slide only when this amount of touches interacting with the element
         /// </summary>
         [BehaviorParameter(Minimum = 1)]
@@ -174,12 +156,19 @@ namespace Notui.Behaviors
         /// After the interaction ended how long the element should continue sliding in seconds
         /// </summary>
         /// <remarks>
-        /// While the element is flicking constraints are still applied. SlidingBehavior will attempt to approach constraint borders smoothly.
+        /// While the element is flicking constraints are still applied.
         /// </remarks>
         [BehaviorParameter(Minimum = 0)]
         public float FlickTime { get; set; } = 0;
-
-        private SelectedPlane _actualPlaneSelection;
+        
+        /// <summary>
+        /// The delay amount in seconds at which to sample the velocity for flicking
+        /// </summary>
+        /// <remarks>
+        /// This fixes behavior when touches release at slighty different times
+        /// </remarks>
+        [BehaviorParameter(Minimum = 0)]
+        public float FlickVelocityDelay { get; set; } = 0.08f;
 
         private void Move(NotuiElement element, BehaviorState state, Matrix4x4 usedplane)
         {
@@ -228,6 +217,7 @@ namespace Notui.Behaviors
                 }
             }
             element.UpdateFromDisplayToInteraction(element);
+            state.Mainloop(element.Context.DeltaTime);
         }
 
         private void FlickProgress(BehaviorState state, NotuiContext context)
@@ -246,15 +236,6 @@ namespace Notui.Behaviors
                 state.DeltaPos = Filters.Velocity(state.DeltaPos, Vector2.Zero, frametime * Max(0.001f, state.DeltaPos.Length()));
                 state.DeltaAngle = Filters.Velocity(state.DeltaAngle, 0, frametime * Max(0.001f, Abs(state.DeltaAngle)));
                 state.DeltaSize = Filters.Velocity(state.DeltaSize, 0, frametime * Max(0.001f, Abs(state.DeltaSize)));
-            }
-        }
-
-        private void AddChildrenTouches(NotuiElement element, List<Touch> touches)
-        {
-            foreach (var child in element.Children.Values)
-            {
-                touches.AddRange(child.Touching.Keys);
-                AddChildrenTouches(child, touches);
             }
         }
 
@@ -278,48 +259,11 @@ namespace Notui.Behaviors
 
         public override void Behave(NotuiElement element)
         {
-            // Select the plane of interaction
-            _actualPlaneSelection = SlideInSelectedPlane == SelectedPlane.ParentPlane ?
-                (element.Parent != null ? SelectedPlane.ParentPlane : SelectedPlane.ViewAligned) :
-                SlideInSelectedPlane;
-
-            Matrix4x4 usedplane;
-            switch (_actualPlaneSelection)
-            {
-                case SelectedPlane.ParentPlane:
-                    usedplane = element.Parent.DisplayMatrix;
-                    break;
-                case SelectedPlane.OwnPlane:
-                    usedplane = element.DisplayMatrix;
-                    break;
-                case SelectedPlane.ViewAligned:
-                    usedplane = Matrix4x4.CreateFromQuaternion(element.Context.ViewOrientation) *
-                                Matrix4x4.CreateTranslation(element.DisplayMatrix.Translation);
-                    break;
-                default:
-                    // same as above
-                    usedplane = Matrix4x4.CreateFromQuaternion(element.Context.ViewOrientation) *
-                                Matrix4x4.CreateTranslation(element.DisplayMatrix.Translation);
-                    break;
-            }
+            var usedplane = GetUsedPlane(element);
             
             var currstate = IsStateAvailable(element) ? GetState<BehaviorState>(element) : new BehaviorState();
 
-            List<Touch> touches;
-            if (SlideOnlyWithSpecificChildren == null)
-            {
-                touches = element.Touching.Keys.ToList();
-                // Merge touches from children if SlideOnChildrenInteracting is true
-                if (SlideOnChildrenInteracting)
-                    AddChildrenTouches(element, touches);
-            }
-            else
-            {
-                touches = new List<Touch>();
-                var selectedChildren = SlideOnlyWithSpecificChildren(element);
-                foreach (var child in selectedChildren)
-                    touches.AddRange(child.Touching.Keys);
-            }
+            var touches = GetBehavingTouches(element);
 
             // Do interaction if there are minimum specified touches
             if(touches.Count >= MinimumTouches)
@@ -377,6 +321,17 @@ namespace Notui.Behaviors
                 currstate.DeltaPos = delta.xy();
                 currstate.DeltaAngle = delta.Z;
                 currstate.DeltaSize = delta.W;
+            }
+            else
+            {
+                if (!currstate.Flicking)
+                {
+                    var deldelta = currstate.DelayedDeltas.GetAt(TimeSpan.FromSeconds(FlickVelocityDelay));
+                    currstate.DeltaPos = deldelta.xy();
+                    currstate.DeltaAngle = deldelta.Z;
+                    currstate.DeltaSize = deldelta.W;
+                }
+                currstate.Flicking = true;
             }
             // Finalize
             Move(element, currstate, usedplane);
