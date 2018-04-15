@@ -1,4 +1,4 @@
-# Notui
+# ₪i
 [![Build status](https://ci.appveyor.com/api/projects/status/bboskxevupreppj7?svg=true)](https://ci.appveyor.com/project/microdee/notui)
 
 Notui is a renderless UI framework which is focusing on arbitrary elements and the user's interaction with them. Designed for but not exclusive to large scale media applications.

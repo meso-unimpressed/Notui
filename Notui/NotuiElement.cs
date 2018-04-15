@@ -4,9 +4,11 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
+using System.Windows.Forms;
 using md.stdl.Interaction;
 using md.stdl.Interfaces;
 using md.stdl.Time;
+using SharpDX.RawInput;
 
 namespace Notui
 {
@@ -29,6 +31,12 @@ namespace Notui
     {
         public Touch Touch;
         public IntersectionPoint IntersectionPoint;
+    }
+    public class MouseInteractionEventArgs : TouchInteractionEventArgs
+    {
+        public MouseButtons Buttons;
+        public bool Hitting;
+        public bool Touching;
     }
 
     public class ChildrenUpdatedEventArgs : EventArgs
@@ -106,6 +114,11 @@ namespace Notui
         /// </summary>
         public ConcurrentDictionary<Touch, IntersectionPoint> Hovering { get; set; } =
             new ConcurrentDictionary<Touch, IntersectionPoint>(new TouchEqualityComparer());
+
+        /// <summary>
+        /// List of touches which appear to be mice
+        /// </summary>
+        public Touch[] Mice { get; set; } = Array.Empty<Touch>();
 
         /// <summary>
         /// Elements which will inherit the transformation of this element
@@ -261,6 +274,24 @@ namespace Notui
         /// Event fired when a touch left this element
         /// </summary>
         public event EventHandler<TouchInteractionEventArgs> OnHitEnd;
+
+        /// <summary>
+        /// Event fired when a button is pressed on a touch with attached mouse above the element
+        /// </summary>
+        public event EventHandler<MouseInteractionEventArgs> OnMouseButtonPressed;
+        /// <summary>
+        /// Event fired when a button is released on a touch with attached mouse above the element
+        /// </summary>
+        public event EventHandler<MouseInteractionEventArgs> OnMouseButtonReleased;
+
+        /// <summary>
+        /// Event fired when a touch with attached mouse above the element changes the vertical scroll wheel position
+        /// </summary>
+        public event EventHandler<MouseInteractionEventArgs> OnVerticalMouseWheelChange;
+        /// <summary>
+        /// Event fired when a touch with attached mouse above the element changes the horizontal scroll wheel position
+        /// </summary>
+        public event EventHandler<MouseInteractionEventArgs> OnHorizontalMouseWheelChange;
 
         /// <summary>
         /// Event fired on every frame while the element is being interacted with
@@ -454,6 +485,78 @@ namespace Notui
                     ElementFade = 0;
                     if(!DeleteMe) OnDeleting?.Invoke(this, EventArgs.Empty);
                     DeleteMe = true;
+                }
+            }
+
+            Mice = Touching.Keys.Where(t => t.AttachadMouse != null)
+                .Concat(Hitting.Keys.Where(t => t.AttachadMouse != null)).ToArray();
+
+            MouseInteractionEventArgs MakeMouseArgs(Touch touch)
+            {
+                var args = new MouseInteractionEventArgs
+                {
+                    Touch = touch,
+                    Touching = Touching.ContainsKey(touch),
+                    Hitting = Hitting.ContainsKey(touch)
+                };
+                args.IntersectionPoint = args.Touching ? Touching[touch] : Hitting[touch];
+                return args;
+            }
+
+            if (Mice.Length > 0)
+            {
+                var hscrolled = false;
+                var vscrolled = false;
+                var buttonpressed = false;
+                var buttonreleased = false;
+
+                foreach (var tmouse in Mice)
+                {
+                    if (tmouse.MouseDelta.AccumulatedWheelDelta != 0) vscrolled = true;
+                    if (tmouse.MouseDelta.AccumulatedHorizontalWheelDelta != 0) hscrolled = true;
+                    if (tmouse.MouseDelta.MouseClicks.Values.Any(mc => mc.ButtonDown)) buttonpressed = true;
+                    if (tmouse.MouseDelta.MouseClicks.Values.Any(mc => mc.ButtonUp)) buttonreleased = true;
+                }
+                
+                if (vscrolled)
+                {
+                    foreach (var touch in Mice.Where(mt => mt.MouseDelta.AccumulatedWheelDelta != 0))
+                    {
+                        OnVerticalMouseWheelChange?.Invoke(this, MakeMouseArgs(touch));
+                    }
+                }
+                if (hscrolled)
+                {
+                    foreach (var touch in Mice.Where(mt => mt.MouseDelta.AccumulatedHorizontalWheelDelta != 0))
+                    {
+                        OnHorizontalMouseWheelChange?.Invoke(this, MakeMouseArgs(touch));
+                    }
+                }
+                if (buttonpressed)
+                {
+                    foreach (var touch in Mice.Where(mt => mt.MouseDelta.MouseClicks.Values.Any(mc => mc.ButtonDown)))
+                    {
+                        var args = MakeMouseArgs(touch);
+                        args.Buttons = MouseButtons.None;
+                        foreach (var button in touch.MouseDelta.MouseClicks.Keys.Where(k => touch.MouseDelta.MouseClicks[k].ButtonDown))
+                        {
+                            args.Buttons = args.Buttons | button;
+                        }
+                        OnMouseButtonPressed?.Invoke(this, args);
+                    }
+                }
+                if (buttonreleased)
+                {
+                    foreach (var touch in Mice.Where(mt => mt.MouseDelta.MouseClicks.Values.Any(mc => mc.ButtonUp)))
+                    {
+                        var args = MakeMouseArgs(touch);
+                        args.Buttons = MouseButtons.None;
+                        foreach (var button in touch.MouseDelta.MouseClicks.Keys.Where(k => touch.MouseDelta.MouseClicks[k].ButtonUp))
+                        {
+                            args.Buttons = args.Buttons | button;
+                        }
+                        OnMouseButtonReleased?.Invoke(this, args);
+                    }
                 }
             }
 

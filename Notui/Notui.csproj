@@ -31,8 +31,8 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="md.stdl, Version=0.1.45.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\md-stdl.0.1.45-beta\lib\net47\md.stdl.dll</HintPath>
+    <Reference Include="md.stdl, Version=0.1.47.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\md-stdl.0.1.47-beta\lib\net47\md.stdl.dll</HintPath>
     </Reference>
     <Reference Include="SevenZip, Version=9.20.0.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\LZMA-SDK.9.20\lib\net20\SevenZip.dll</HintPath>
@@ -48,6 +48,7 @@
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
     <Reference Include="System.Interactive, Version=3.0.1000.0, Culture=neutral, PublicKeyToken=94bc3704cddfc263, processorArchitecture=MSIL">
       <HintPath>..\packages\System.Interactive.3.1.1\lib\net45\System.Interactive.dll</HintPath>
     </Reference>
@@ -77,10 +78,21 @@
     <Reference Include="System.Data" />
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Xml" />
+    <Reference Include="VVVV.Utils">
+      <HintPath>..\dlls\VVVV.Utils.dll</HintPath>
+    </Reference>
+    <Reference Include="VVVV.Utils3rdParty">
+      <HintPath>..\dlls\VVVV.Utils3rdParty.dll</HintPath>
+    </Reference>
+    <Reference Include="VVVV.UtilsIL">
+      <HintPath>..\dlls\VVVV.UtilsIL.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="2DBasicElements.cs" />
+    <Compile Include="Behaviors\AbstractPlanarBehavior.cs" />
     <Compile Include="Behaviors\MoveToTopOnTouch.cs" />
+    <Compile Include="Behaviors\MouseWheelScroll.cs" />
     <Compile Include="Behaviors\Sliding.cs" />
     <Compile Include="Behaviors\ValueSlider2D.cs" />
     <Compile Include="ElementCommon.cs" />
