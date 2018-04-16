@@ -106,10 +106,11 @@ namespace Notui.Behaviors
             if (touches.Count >= 1)
             {
                 var allscroll = touches.Aggregate(Vector2.Zero, (v, touch) => v + new Vector2(
-                    touch.MouseDelta.AccumulatedHorizontalWheelDelta,
-                    touch.MouseDelta.AccumulatedWheelDelta)
+                    (float)touch.MouseDelta.AccumulatedHorizontalWheelDelta / 120,
+                    (float)touch.MouseDelta.AccumulatedWheelDelta / 120)
                 );
-                currstate.DeltaPos = allscroll;
+                if(allscroll.Length() > 0)
+                    currstate.DeltaPos = allscroll;
             }
             Move(element, currstate, usedplane);
             FlickProgress(currstate, element.Context);

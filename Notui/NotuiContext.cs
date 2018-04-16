@@ -126,12 +126,20 @@ namespace Notui
         public event EventHandler OnMainLoopBegin;
         public event EventHandler OnMainLoopEnd;
 
+        /// <summary>
+        /// Call this function every frame before Context.Mainloop
+        /// </summary>
+        /// <param name="touches">List of touch primitives to work with</param>
         public void SubmitTouches(IEnumerable<(Vector2, int, float)> touches)
         {
             _inputTouches.Clear();
             _inputTouches.AddRange(touches);
         }
 
+        /// <summary>
+        /// Use a mouse to interact with elements and generate touches from it
+        /// </summary>
+        /// <param name="mouse">The selected mouse device</param>
         public void SubmitMouse(Mouse mouse)
         {
             MouseDelta?.Unsubscribe();
@@ -147,6 +155,9 @@ namespace Notui
             MouseDelta.SubscribeTo(mouse.MouseNotifications);
         }
 
+        /// <summary>
+        /// No longer generate touches from the submitted mouse
+        /// </summary>
         public void DetachMouse()
         {
             if(MouseDelta == null || AttachableMouse == null) return;
@@ -157,6 +168,7 @@ namespace Notui
             AttachableMouse = null;
             _mouseUnsubscriber = null;
         }
+        
         public void Mainloop(float deltatime)
         {
             OnMainLoopBegin?.Invoke(this, EventArgs.Empty);
@@ -245,6 +257,7 @@ namespace Notui
                     {
                         tt = new Touch(MouseTouchId) { Force = mbpressed ? MouseTouchForce : 0.0f };
                         tt.AttachMouse(AttachableMouse, MouseDelta);
+                        Touches.TryAdd(tt.Id, tt);
                     }
                     tt.Update(_mouseTouchPos, deltatime);
                     tt.Force = mbpressed ? MouseTouchForce : 0.0f;
@@ -310,7 +323,7 @@ namespace Notui
             if(UseParallel) FlatElements.AsParallel().ForAll(ProcessElements);
             else FlatElements.ForEach(ProcessElements);
 
-            MouseDelta.Mainloop(deltatime);
+            MouseDelta?.Mainloop(deltatime);
             OnMainLoopEnd?.Invoke(this, EventArgs.Empty);
         }
 

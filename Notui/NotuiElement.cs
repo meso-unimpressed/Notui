@@ -489,7 +489,7 @@ namespace Notui
             }
 
             Mice = Touching.Keys.Where(t => t.AttachadMouse != null)
-                .Concat(Hitting.Keys.Where(t => t.AttachadMouse != null)).ToArray();
+                .Concat(Hitting.Keys.Where(t => t.AttachadMouse != null)).Distinct().ToArray();
 
             MouseInteractionEventArgs MakeMouseArgs(Touch touch)
             {

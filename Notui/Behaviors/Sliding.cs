@@ -61,9 +61,6 @@ namespace Notui.Behaviors
 
             public event EventHandler OnMainLoopBegin;
             public event EventHandler OnMainLoopEnd;
-
-            private IObservable<Vector4> _mainLoopObservable;
-            private IObservable<Vector4> _delayLine;
         }
 
         /// <summary>

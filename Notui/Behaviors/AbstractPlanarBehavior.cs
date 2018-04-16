@@ -85,7 +85,7 @@ namespace Notui.Behaviors
             foreach (var child in element.Children.Values)
             {
                 touches.AddRange(GetTouchesFromSource(child, touchsrc));
-                AddChildrenTouches(child, touches);
+                AddChildrenTouches(child, touches, touchsrc);
             }
         }
 
@@ -124,7 +124,7 @@ namespace Notui.Behaviors
             {
                 touches = GetTouchesFromSource(element, touchsrc).ToList();
                 if (UseChildrenInteracting)
-                    AddChildrenTouches(element, touches);
+                    AddChildrenTouches(element, touches, touchsrc);
             }
             else
             {
