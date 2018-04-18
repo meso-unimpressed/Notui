@@ -120,12 +120,24 @@ namespace Notui
         float FadeInTime { get; set; }
 
         /// <summary>
-        /// Transformation to work with during user manipulation like smoothed dragging. This is used for hittesting touches already interacting with this element.
+        /// Delay fading out by this amount of seconds
         /// </summary>
-        ElementTransformation InteractionTransformation { get; set; }
+        /// <remarks>Good for creating staggering effects</remarks>
+        float FadeOutDelay { get; set; }
 
         /// <summary>
-        /// Transformation to be used during the display of the element. This is used for hittesting newly interacting touches, and for the parent transformation for children.
+        /// Delay fading in by this amount of seconds
+        /// </summary>
+        /// <remarks>Good for creating staggering effects</remarks>
+        float FadeInDelay { get; set; }
+
+        /// <summary>
+        /// How much time it should take for an instance to follow its prototype transform
+        /// </summary>
+        float TransformationFollowTime { get; set; }
+
+        /// <summary>
+        /// Transformation of this element. This is used for hittesting and for the parent transformation of children.
         /// </summary>
         ElementTransformation DisplayTransformation { get; set; }
         

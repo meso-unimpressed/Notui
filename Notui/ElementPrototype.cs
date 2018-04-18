@@ -24,7 +24,9 @@ namespace Notui
         public bool Transparent { get; set; }
         public float FadeOutTime { get; set; }
         public float FadeInTime { get; set; }
-        public ElementTransformation InteractionTransformation { get; set; } = new ElementTransformation();
+        public float FadeOutDelay { get; set; }
+        public float FadeInDelay { get; set; }
+        public float TransformationFollowTime { get; set; }
         public ElementTransformation DisplayTransformation { get; set; } = new ElementTransformation();
         public List<InteractionBehavior> Behaviors { get; set; } = new List<InteractionBehavior>();
         public AttachedValues Value { get; set; }

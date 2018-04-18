@@ -28,11 +28,10 @@ namespace Notui
         {
             // when first hit consider the display transformation then
             // for the rest of the interaction consider the interaction transform
-            var matrix = Hitting.ContainsKey(touch) ? InteractionMatrix : DisplayMatrix;
             var hit = Intersections.PlaneRay(
                 touch.WorldPosition,
                 touch.ViewDir,
-                matrix,
+                DisplayMatrix,
                 out var ispoint,
                 out var planarpoint);
             return hit ? new IntersectionPoint(ispoint, planarpoint, this) : null;

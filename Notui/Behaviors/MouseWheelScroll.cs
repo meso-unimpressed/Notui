@@ -77,7 +77,6 @@ namespace Notui.Behaviors
 
             disptr.Translate(worldvel);
             disptr.Position = Intersections.BoxPointLimit(BoundingBoxMin, BoundingBoxMax, disptr.Position);
-            element.UpdateFromDisplayToInteraction(element);
         }
 
         private void FlickProgress(BehaviorState state, NotuiContext context)

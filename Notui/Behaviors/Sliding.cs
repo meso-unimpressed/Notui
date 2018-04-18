@@ -193,7 +193,6 @@ namespace Notui.Behaviors
                         disptr.Scale * new Vector3(1 + sclvel)
                     )
                 );
-
             }
             if (Pivotable)
             {
@@ -213,7 +212,6 @@ namespace Notui.Behaviors
                     disptr.LocalRotate(worldrot);
                 }
             }
-            element.UpdateFromDisplayToInteraction(element);
             state.Mainloop(element.Context.DeltaTime);
         }
 
@@ -227,12 +225,9 @@ namespace Notui.Behaviors
             }
             else
             {
-                // TODO: that 6 there is a rough estimation magic number coming from a vague memory of the integral of something something low-pass filter
-                // It was years ago, only the 6 part stuck and it was good enough for animation
-                var frametime = (6 / FlickTime) * context.DeltaTime;
-                state.DeltaPos = Filters.Velocity(state.DeltaPos, Vector2.Zero, frametime * Max(0.001f, state.DeltaPos.Length()));
-                state.DeltaAngle = Filters.Velocity(state.DeltaAngle, 0, frametime * Max(0.001f, Abs(state.DeltaAngle)));
-                state.DeltaSize = Filters.Velocity(state.DeltaSize, 0, frametime * Max(0.001f, Abs(state.DeltaSize)));
+                state.DeltaPos = Filters.Damper(state.DeltaPos, Vector2.Zero, FlickTime, context.DeltaTime);
+                state.DeltaAngle = Filters.Damper(state.DeltaAngle, 0, FlickTime, context.DeltaTime);
+                state.DeltaSize = Filters.Damper(state.DeltaSize, 0, FlickTime, context.DeltaTime);
             }
         }
 

@@ -19,30 +19,18 @@ namespace Notui.Behaviors
         [BehaviorParameter]
         public float Distance { get; set; } = 0.0f;
 
-        /// <summary>
-        /// Use interaction transform to get element current depth
-        /// </summary>
-        [BehaviorParameter]
-        public bool UseInteractionTransform { get; set; }
-
-        private ElementTransformation SelectTransform(NotuiElement element)
-        {
-            return UseInteractionTransform ? element.InteractionTransformation : element.DisplayTransformation;
-        }
-
         public override void Behave(NotuiElement element)
         {
             if (!element.Touched) return;
-            var mindist = element.Children.Values.Min(child => SelectTransform(child).GetViewPosition(child.Context).Z);
+            var mindist = element.Children.Values.Min(child => child.DisplayTransformation.GetViewPosition(child.Context).Z);
             var moveby = Math.Max(mindist - Distance, 0);
-            var movedir = Vector3.Normalize(element.Context.ViewPosition - SelectTransform(element).Position);
+            var movedir = Vector3.Normalize(element.Context.ViewPosition - element.DisplayTransformation.Position);
             element.DisplayTransformation.Translate(movedir * moveby);
-            element.InteractionTransformation.Translate(movedir * moveby);
             foreach (var el in element.Context.RootElements.Values)
             {
                 el.DisplayTransformation.Translate(movedir * mindist * -1);
-                el.InteractionTransformation.Translate(movedir * mindist * -1);
             }
+            element.TargetTransformation.UpdateFrom(element.DisplayTransformation);
         }
     }
 }

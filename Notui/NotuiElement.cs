@@ -4,11 +4,14 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
+using System.Reactive;
+using System.Reactive.Linq;
 using System.Windows.Forms;
 using md.stdl.Interaction;
 using md.stdl.Interfaces;
 using md.stdl.Time;
 using SharpDX.RawInput;
+using Timer = System.Timers.Timer;
 
 namespace Notui
 {
@@ -50,22 +53,40 @@ namespace Notui
     /// </summary>
     public abstract class NotuiElement : IElementCommon, ICloneable<NotuiElement>, IUpdateable<ElementPrototype>, IMainlooping
     {
-        private Matrix4x4 _interactionMatrix;
         private Matrix4x4 _displayMatrix;
         private bool _onFadedInInvoked;
+        private float _fadeOutDelay;
+        private float _fadeInDelay;
+        private Timer _fadeOutDelayTimer = new Timer { AutoReset = false };
+        private Timer _fadeInDelayTimer = new Timer { AutoReset = false };
 
         public string Name { get; set; }
         public string Id { get; set; } = Guid.NewGuid().ToString();
         public float FadeOutTime { get; set; }
         public float FadeInTime { get; set; }
+
+        public float FadeOutDelay
+        {
+            get => _fadeOutDelay + Children.Count > 0 ? Children.Values.Max(cel => cel.FadeOutDelay) : 0;
+            set => _fadeOutDelay = value;
+        }
+
+        public float FadeInDelay
+        {
+            get => _fadeInDelay + Parent?.FadeInDelay ?? 0;
+            set => _fadeInDelay = value;
+        }
+
+        public float TransformationFollowTime { get; set; }
+
         public bool Active { get; set; }
         public bool Transparent { get; set; }
         public List<InteractionBehavior> Behaviors { get; set; } = new List<InteractionBehavior>();
         public AttachedValues Value { get; set; }
         public AuxiliaryObject EnvironmentObject { get; set; }
-
-        public ElementTransformation InteractionTransformation { get; set; } = new ElementTransformation();
+        
         public ElementTransformation DisplayTransformation { get; set; } = new ElementTransformation();
+        public ElementTransformation TargetTransformation { get; set; } = new ElementTransformation();
 
         /// <summary>
         /// The context which this element is assigned to.
@@ -141,7 +162,12 @@ namespace Notui
         public StopwatchInteractive Age { get; set; } = new StopwatchInteractive();
 
         /// <summary>
-        /// Start this stopwatch to fade out this element before deletion.
+        /// This stopwatch is started to fade in this element after creation (+ optional delay).
+        /// </summary>
+        public StopwatchInteractive FadeInStopwatch { get; set; } = new StopwatchInteractive();
+
+        /// <summary>
+        /// This stopwatch is started to fade out this element before deletion.
         /// </summary>
         /// <remarks>
         /// Metalocalypse
@@ -149,30 +175,9 @@ namespace Notui
         public StopwatchInteractive Dethklok { get; set; } = new StopwatchInteractive();
 
         /// <summary>
-        /// Was interaction matrix already calculated since last request.
-        /// </summary>
-        public bool InteractionMatrixCached { get; set; }
-
-        /// <summary>
         /// Was display matrix already calculated since last request.
         /// </summary>
         public bool DisplayMatrixCached { get; set; }
-
-        /// <summary>
-        /// Absolute world interaction transformation.
-        /// </summary>
-        public Matrix4x4 InteractionMatrix
-        {
-            get
-            {
-                if (!InteractionMatrixCached)
-                {
-                    _interactionMatrix = GetInteractionTransform();
-                    InteractionMatrixCached = true;
-                }
-                return _interactionMatrix;
-            }
-        }
 
         /// <summary>
         /// Absolute world display transformation.
@@ -202,17 +207,6 @@ namespace Notui
         }
 
         /// <summary>
-        /// Pure function for getting the matrix of the interaction transformation
-        /// </summary>
-        /// <returns></returns>
-        public Matrix4x4 GetInteractionTransform()
-        {
-            var parent = Matrix4x4.Identity;
-            if (Parent != null) parent = Parent.GetDisplayTransform();
-            return InteractionTransformation.Matrix * parent;
-        }
-
-        /// <summary>
         /// Pure function for flattening the element hiararchy into a single list
         /// </summary>
         /// <param name="flatElements">The list containing the result</param>
@@ -225,24 +219,9 @@ namespace Notui
             }
         }
 
-        public void UpdateFromDisplayToInteraction(IElementCommon element)
-        {
-            InteractionTransformation.UpdateFrom(element.DisplayTransformation);
-        }
-
-        public void UpdateFromInteractionToDisplay(IElementCommon element)
-        {
-            DisplayTransformation.UpdateFrom(element.InteractionTransformation);
-        }
-
-        public void FollowDisplay(IElementCommon element)
+        public void FollowTransformation(IElementCommon element)
         {
             DisplayTransformation.UpdateFrom(element.DisplayTransformation);
-        }
-
-        public void FollowInteraction(IElementCommon element)
-        {
-            InteractionTransformation.UpdateFrom(element.InteractionTransformation);
         }
 
         /// <summary>
@@ -420,8 +399,7 @@ namespace Notui
         public void Mainloop(float deltatime)
         {
             OnMainLoopBegin?.Invoke(this, EventArgs.Empty);
-
-            InteractionTransformation.SubscribeToChange(Id, transformation => InvalidateMatrices());
+            
             DisplayTransformation.SubscribeToChange(Id, transformation => InvalidateMatrices());
 
             MainloopBegin();
@@ -463,15 +441,15 @@ namespace Notui
 
             if (FadeInTime > 0)
             {
-                ElementFade = Math.Min(Math.Max(0, (float) Age.Elapsed.TotalSeconds / FadeInTime), 1);
+                ElementFade = Math.Min(Math.Max(0, (float) FadeInStopwatch.Elapsed.TotalSeconds / FadeInTime), 1);
             }
-            else
+            else if(FadeInStopwatch.IsRunning)
             {
                 if(ElementFade < 1) OnFadedIn?.Invoke(this, EventArgs.Empty);
                 _onFadedInInvoked = true;
                 ElementFade = 1;
             }
-            if (Age.Elapsed.TotalSeconds >= FadeInTime && !_onFadedInInvoked)
+            if (FadeInStopwatch.Elapsed.TotalSeconds >= FadeInTime && !_onFadedInInvoked)
             {
                 OnFadedIn?.Invoke(this, EventArgs.Empty);
                 _onFadedInInvoked = true;
@@ -560,6 +538,11 @@ namespace Notui
                 }
             }
 
+            if (TransformationFollowTime > 0)
+            {
+                DisplayTransformation.FollowWithDamper(TargetTransformation, TransformationFollowTime, Context.DeltaTime, Prototype.TransformApplication);
+            }
+
             MainloopBeforeBehaviors();
             if(Touched) OnInteracting?.Invoke(this, EventArgs.Empty);
             foreach (var behavior in Behaviors)
@@ -586,7 +569,6 @@ namespace Notui
         /// </summary>
         public void InvalidateMatrices()
         {
-            InteractionMatrixCached = false;
             DisplayMatrixCached = false;
             foreach (var child in Children.Values)
                 child.InvalidateMatrices();
@@ -594,7 +576,12 @@ namespace Notui
 
         public void UpdateFrom(ElementPrototype other)
         {
-            this.UpdateCommon(other, other.TransformApplication);
+            if (TransformationFollowTime > 0)
+            {
+                this.UpdateCommon(other);
+                TargetTransformation.UpdateFrom(other.DisplayTransformation);
+            }
+            else this.UpdateCommon(other, other.TransformApplication);
             Value?.UpdateFrom(other.Value);
             UpdateChildren(true, other.Children.Values.ToArray());
         }
@@ -619,6 +606,18 @@ namespace Notui
                 var newchild = child.Instantiate(context, this);
                 Children.Add(child.Id, newchild);
             }
+
+            if (FadeInDelay > 0.0f)
+            {
+                _fadeInDelayTimer.Interval = FadeInDelay * 1000;
+                _fadeInDelayTimer.Elapsed += (sender, args) =>
+                {
+                    FadeInStopwatch.Start();
+                    _fadeInDelayTimer.Stop();
+                };
+                _fadeInDelayTimer.Start();
+            }
+            else FadeInStopwatch.Start();
             Age.Start();
         }
 
@@ -663,15 +662,30 @@ namespace Notui
             {
                 child.StartDeletion();
             }
+            if (FadeOutDelay > 0.0f)
+            {
+                _fadeOutDelayTimer.Interval = FadeOutDelay * 1000;
+                _fadeOutDelayTimer.Elapsed += (sender, args) =>
+                {
+                    Delete();
+                    _fadeOutDelayTimer.Stop();
+                };
+                _fadeOutDelayTimer.Start();
+            }
+            else Delete();
+        }
+
+        protected void Delete()
+        {
             if (FadeOutTime > 0)
             {
-                if(!Dethklok.IsRunning) OnDeletionStarted?.Invoke(this, EventArgs.Empty);
+                if (!Dethklok.IsRunning) OnDeletionStarted?.Invoke(this, EventArgs.Empty);
                 Dethklok.Start();
             }
             else
             {
                 ElementFade = 0;
-                if(Age.Elapsed.TotalSeconds > Context.DeltaTime) OnDeleting?.Invoke(this, EventArgs.Empty);
+                if (Age.Elapsed.TotalSeconds > Context.DeltaTime) OnDeleting?.Invoke(this, EventArgs.Empty);
                 DeleteMe = true;
             }
         }

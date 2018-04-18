@@ -206,15 +206,19 @@ namespace Notui
 
             // Scan through elements if any of them wants to be killed or if there are new ones
             bool rebuild = false;
+            foreach (var element in FlatElements)
+            {
+                var dethklok = element.Dethklok;
+                var deleteme = element.DeleteMe || dethklok.Elapsed.TotalSeconds >= element.FadeOutTime && dethklok.IsRunning;
+                if (!deleteme) continue;
+                rebuild = true;
+                _elementsDeleted = true;
+                if (element.Parent == null) RootElements.Remove(element.Id);
+                else element.Parent.Children.Remove(element.Id);
+            }
+
             if (_elementsDeleted)
             {
-                foreach (var element in FlatElements)
-                {
-                    if (!element.DeleteMe) continue;
-                    if (element.Parent == null) RootElements.Remove(element.Id);
-                    else element.Parent.Children.Remove(element.Id);
-                }
-                rebuild = true;
                 _elementsDeleted = false;
                 OnElementsDeleted?.Invoke(this, EventArgs.Empty);
             }
@@ -364,7 +368,6 @@ namespace Notui
         {
             foreach (var element in FlatElements)
             {
-                element.OnDeleting -= OnIndividualElementDeletion;
                 element.OnChildrenUpdated -= OnIndividualElementUpdate;
             }
             FlatElements.Clear();
@@ -375,7 +378,6 @@ namespace Notui
 
             foreach (var element in FlatElements)
             {
-                element.OnDeleting += OnIndividualElementDeletion;
                 element.OnChildrenUpdated += OnIndividualElementUpdate;
             }
         }
@@ -386,11 +388,6 @@ namespace Notui
         private void OnIndividualElementUpdate(object sender, ChildrenUpdatedEventArgs childrenAddedEventArgs)
         {
             _elementsUpdated = true;
-        }
-
-        private void OnIndividualElementDeletion(object sender, EventArgs eventArgs)
-        {
-            _elementsDeleted = true;
         }
 
         private static IEnumerable<IntersectionPoint> GetTopInteractableElements(IEnumerable<IntersectionPoint> orderedhitinsecs)

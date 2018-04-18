@@ -54,7 +54,6 @@ namespace Notui
                 InvalidateCache();
             }
         }
-        public Vector3 PosVelocity { get; set; }
 
         /// <summary>
         /// Scale of the element relative to its parent possibly in 3D world
@@ -108,32 +107,16 @@ namespace Notui
         }
 
         /// <summary>
-        /// Follow reference transform with inertial filtering on position and lowpass on rest
+        /// Follow reference transform with Damper filtering
         /// </summary>
         /// <param name="reference">The transformation to follow</param>
-        /// <param name="force">The maximum force to use</param>
-        /// <param name="alpha">Alpha component of the lowpass filters</param>
+        /// <param name="time">Amount of seconds it takes to reach the reference transformation</param>
         /// <param name="deltaT">Delta time of a hypothetical frame in seconds</param>
-        public void FollowWithInertia(ElementTransformation reference, float force, float alpha, float deltaT)
+        public void FollowWithDamper(ElementTransformation reference, float time, float deltaT, ApplyTransformMode selective)
         {
-            Filters.Inertial(Position, PosVelocity, reference.Position, force * deltaT, out var pos, out var vel);
-            Position = pos;
-            PosVelocity = vel;
-            Scale = Filters.Lowpass(Scale, reference.Scale, new Vector3(alpha * deltaT));
-            Rotation = Filters.Lowpass(Rotation, reference.Rotation, alpha * deltaT);
-        }
-
-        /// <summary>
-        /// Follow reference transform with lowpass filtering
-        /// </summary>
-        /// <param name="reference">The transformation to follow</param>
-        /// <param name="alpha">Alpha component of the lowpass filters</param>
-        /// <param name="deltaT">Delta time of a hypothetical frame in seconds</param>
-        public void FollowWithLowpass(ElementTransformation reference, float alpha, float deltaT)
-        {
-            Position = Filters.Lowpass(Position, reference.Position, new Vector3(alpha * deltaT));
-            Scale = Filters.Lowpass(Scale, reference.Scale, new Vector3(alpha * deltaT));
-            Rotation = Filters.Lowpass(Rotation, reference.Rotation, alpha * deltaT);
+            if (((byte)selective & 0x1) != 0x0) Position = Filters.Damper(Position, reference.Position, time, deltaT);
+            if (((byte)selective & 0x2) != 0x0) Scale = Filters.Damper(Scale, reference.Scale, time, deltaT);
+            if (((byte)selective & 0x4) != 0x0) Rotation = Filters.Damper(Rotation, reference.Rotation, time, deltaT);
         }
 
         /// <summary>

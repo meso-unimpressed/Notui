@@ -71,12 +71,29 @@ namespace Notui
         }
 
         /// <summary>
-        /// Update an IElementCommon from another IElementCommon
+        /// Update an IElementCommon from another IElementCommon with transformation
         /// </summary>
         /// <param name="element">Receiving element, Can be a prototype or an instance</param>
         /// <param name="prototype">Reference element, Can be a prototype or an instance</param>
         /// <param name="selectivetr"></param>
         public static void UpdateCommon(this IElementCommon element, IElementCommon prototype, ApplyTransformMode selectivetr)
+        {
+            UpdateCommon(element, prototype);
+            if (element is NotuiElement elinst)
+            {
+                if (prototype is NotuiElement el)
+                    el.TargetTransformation.UpdateFrom(elinst.TargetTransformation, selectivetr);
+            }
+            element.DisplayTransformation.UpdateFrom(prototype.DisplayTransformation, selectivetr);
+        }
+
+        /// <summary>
+        /// Update an IElementCommon from another IElementCommon without transformation
+        /// </summary>
+        /// <param name="element">Receiving element, Can be a prototype or an instance</param>
+        /// <param name="prototype">Reference element, Can be a prototype or an instance</param>
+        /// <param name="selectivetr"></param>
+        public static void UpdateCommon(this IElementCommon element, IElementCommon prototype)
         {
             element.Id = prototype.Id;
 
@@ -90,10 +107,11 @@ namespace Notui
             element.Active = prototype.Active;
             element.Transparent = prototype.Transparent;
             element.FadeOutTime = prototype.FadeOutTime;
+            element.FadeOutDelay = prototype.FadeOutDelay;
             element.FadeInTime = prototype.FadeInTime;
+            element.FadeInDelay = prototype.FadeInDelay;
+            element.TransformationFollowTime = prototype.TransformationFollowTime;
             element.Behaviors = prototype.Behaviors;
-            element.InteractionTransformation.UpdateFrom(prototype.InteractionTransformation, selectivetr);
-            element.DisplayTransformation.UpdateFrom(prototype.DisplayTransformation, selectivetr);
         }
 
         /// <summary>
