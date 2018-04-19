@@ -11,7 +11,6 @@ using md.stdl.Interaction;
 using md.stdl.Interfaces;
 using md.stdl.Time;
 using SharpDX.RawInput;
-using Timer = System.Timers.Timer;
 
 namespace Notui
 {
@@ -57,27 +56,19 @@ namespace Notui
     {
         private Matrix4x4 _displayMatrix;
         private bool _onFadedInInvoked;
-        private float _fadeOutDelay;
-        private float _fadeInDelay;
-        private Timer _fadeOutDelayTimer = new Timer { AutoReset = false };
-        private Timer _fadeInDelayTimer = new Timer { AutoReset = false };
+        private StopwatchInteractive _fadeOutDelayTimer = new StopwatchInteractive();
+        private StopwatchInteractive _fadeInDelayTimer = new StopwatchInteractive();
 
         public string Name { get; set; }
         public string Id { get; set; } = Guid.NewGuid().ToString();
         public float FadeOutTime { get; set; }
         public float FadeInTime { get; set; }
 
-        public float FadeOutDelay
-        {
-            get => _fadeOutDelay + Children.Count > 0 ? Children.Values.Max(cel => cel.FadeOutDelay) : 0;
-            set => _fadeOutDelay = value;
-        }
+        public float FadeOutDelay { get; set; }
+        public float AbsoluteFadeOutDelay => FadeOutDelay + (Children.Count > 0 ? Children.Values.Max(cel => cel.FadeOutDelay) : 0);
 
-        public float FadeInDelay
-        {
-            get => _fadeInDelay + Parent?.FadeInDelay ?? 0;
-            set => _fadeInDelay = value;
-        }
+        public float FadeInDelay { get; set; }
+        public float AbsoluteFadeInDelay => FadeInDelay + (Parent?.FadeInDelay ?? 0);
 
         public float TransformationFollowTime { get; set; }
 
@@ -453,6 +444,9 @@ namespace Notui
                     Touching[touch] = inters;
             }
 
+            _fadeOutDelayTimer.Mainloop(deltatime);
+            _fadeInDelayTimer.Mainloop(deltatime);
+
             if (FadeInTime > 0)
             {
                 ElementFade = Math.Min(Math.Max(0, (float) FadeInStopwatch.Elapsed.TotalSeconds / FadeInTime), 1);
@@ -624,14 +618,10 @@ namespace Notui
                 Children.Add(child.Id, newchild);
             }
 
-            if (FadeInDelay > 0.0f)
+            if (AbsoluteFadeInDelay > 0.0f)
             {
-                _fadeInDelayTimer.Interval = FadeInDelay * 1000;
-                _fadeInDelayTimer.Elapsed += (sender, args) =>
-                {
-                    FadeInStopwatch.Start();
-                    _fadeInDelayTimer.Stop();
-                };
+                _fadeInDelayTimer.SetTrigger(TimeSpan.FromSeconds(AbsoluteFadeInDelay));
+                _fadeInDelayTimer.OnTriggerPassed += (sender, args) => FadeInStopwatch.Start();
                 _fadeInDelayTimer.Start();
             }
             else FadeInStopwatch.Start();
@@ -679,15 +669,11 @@ namespace Notui
             {
                 child.StartDeletion();
             }
-            if (FadeOutDelay > 0.0f)
+            if (AbsoluteFadeOutDelay > 0.0f)
             {
-                _fadeOutDelayTimer.Interval = FadeOutDelay * 1000;
-                _fadeOutDelayTimer.Elapsed += (sender, args) =>
-                {
-                    Delete();
-                    _fadeOutDelayTimer.Stop();
-                };
-                _fadeOutDelayTimer.Start();
+                _fadeInDelayTimer.SetTrigger(TimeSpan.FromSeconds(AbsoluteFadeInDelay));
+                _fadeInDelayTimer.OnTriggerPassed += (sender, args) => Delete();
+                _fadeInDelayTimer.Start();
             }
             else Delete();
         }
