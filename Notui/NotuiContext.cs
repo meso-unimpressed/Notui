@@ -122,6 +122,7 @@ namespace Notui
 
         private IDisposable _mouseUnsubscriber;
         private Vector2 _mouseTouchPos;
+        private bool _rebuild = false;
 
         public event EventHandler OnMainLoopBegin;
         public event EventHandler OnMainLoopEnd;
@@ -168,6 +169,13 @@ namespace Notui
             AttachableMouse = null;
             _mouseUnsubscriber = null;
         }
+
+        public void RequestRebuild(bool deleted, bool updated)
+        {
+            _rebuild = true;
+            if (deleted) _elementsDeleted = true;
+            if (updated) _elementsUpdated = true;
+        }
         
         public void Mainloop(float deltatime)
         {
@@ -205,13 +213,12 @@ namespace Notui
             }
 
             // Scan through elements if any of them wants to be killed or if there are new ones
-            bool rebuild = false;
             foreach (var element in FlatElements)
             {
                 var dethklok = element.Dethklok;
-                var deleteme = element.DeleteMe || dethklok.Elapsed.TotalSeconds >= element.FadeOutTime && dethklok.IsRunning;
+                var deleteme = element.DeleteMe || (float)dethklok.Elapsed.TotalSeconds > element.FadeOutTime && element.Dying;
                 if (!deleteme) continue;
-                rebuild = true;
+                _rebuild = true;
                 _elementsDeleted = true;
                 if (element.Parent == null) RootElements.Remove(element.Id);
                 else element.Parent.Children.Remove(element.Id);
@@ -224,11 +231,12 @@ namespace Notui
             }
             if (_elementsUpdated)
             {
-                rebuild = true;
+                _rebuild = true;
                 _elementsUpdated = false;
                 OnElementsUpdated?.Invoke(this, EventArgs.Empty);
             }
-            if(rebuild) BuildFlatList();
+            if(_rebuild) BuildFlatList();
+            _rebuild = false;
 
             // Process input touches
             foreach (var touch in _inputTouches)

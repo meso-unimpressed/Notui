@@ -89,7 +89,9 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="2DBasicElements.cs" />
+    <Compile Include="Elements\2DBasicElements.cs" />
+    <Compile Include="Elements\Box.cs" />
+    <Compile Include="Elements\Sphere.cs" />
     <Compile Include="Behaviors\AbstractPlanarBehavior.cs" />
     <Compile Include="Behaviors\MoveToTopOnTouch.cs" />
     <Compile Include="Behaviors\MouseWheelScroll.cs" />

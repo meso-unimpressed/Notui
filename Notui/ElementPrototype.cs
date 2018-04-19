@@ -11,13 +11,64 @@ using md.stdl.Time;
 
 namespace Notui
 {
+    public class NoSuchPrototypeConstructorFoundException : Exception
+    {
+        private string _instType;
+
+        public override string Message => $"Couldn't find the right constructor for {_instType}.";
+
+        public NoSuchPrototypeConstructorFoundException(Type t)
+        {
+            _instType = t.FullName;
+        }
+    }
     /// <inheritdoc cref="ICloneable{T}" />
     /// <inheritdoc cref="IElementCommon"/>
     /// <summary>
     /// A stateless record class serving as schematic for creating the actual Notui elements
     /// </summary>
-    public class ElementPrototype : IElementCommon, ICloneable<ElementPrototype>
+    public abstract class ElementPrototype : IElementCommon, ICloneable<ElementPrototype>, IUpdateable<NotuiElement>, IUpdateable<ElementPrototype>
     {
+        protected static ElementPrototype CreateFromPrototype(ElementPrototype element, bool newId = true)
+        {
+            var prottype = element.GetType();
+            var constructor = prottype.GetConstructor(
+                new[]
+                {
+                    typeof(string),
+                    typeof(ElementPrototype)
+                });
+            if (constructor == null)
+            {
+                throw new NoSuchPrototypeConstructorFoundException(prottype);
+            }
+            else
+            {
+                return (ElementPrototype)constructor.Invoke(new object[] { newId ? null : element.Id, element.Parent });
+            }
+        }
+
+        public static ElementPrototype CreateFromInstance(NotuiElement element, bool newId = true)
+        {
+            var prottype = element.Prototype.GetType();
+            var res = (ElementPrototype)prottype.GetConstructor(
+                new[]
+                {
+                    typeof(NotuiElement),
+                    typeof(bool)
+                })?
+                .Invoke(new object[] {element, newId });
+            if (res == null)
+            {
+                throw new NoSuchPrototypeConstructorFoundException(prottype);
+            }
+            else
+            {
+                res.UpdateFrom(element);
+                return res;
+            }
+        }
+
         public string Name { get; set; }
         public string Id { get; set; } = Guid.NewGuid().ToString();
         public bool Active { get; set; }
@@ -77,7 +128,7 @@ namespace Notui
         /// <remarks>
         /// It is strongly recommended to generate a new Id instead of copying it over from the other instance. This constructor should be only used if you are desperate.
         /// </remarks>
-        public ElementPrototype(NotuiElement fromInstance, bool newId = true)
+        protected ElementPrototype(NotuiElement fromInstance, bool newId = true)
         {
             InstanceType = fromInstance.GetType();
             this.UpdateCommon(fromInstance, ApplyTransformMode.All);
@@ -90,7 +141,7 @@ namespace Notui
 
             foreach (var child in fromInstance.Children.Values)
             {
-                Children.Add(child.Id, new ElementPrototype(child, newId));
+                Children.Add(child.Id, child.Prototype.Copy());
             }
         }
 
@@ -119,16 +170,26 @@ namespace Notui
             return (NotuiElement)GetElementConstructor().Invoke(new object[] { this, context, parent });
         }
 
-        public ElementPrototype Copy()
+        public virtual ElementPrototype Copy()
         {
-            var res = new ElementPrototype(InstanceType, Id, Parent);
-            res.UpdateCommon(this, ApplyTransformMode.All);
+            var res = CreateFromPrototype(this, false);
+            res.UpdateFrom(this);
             return res;
         }
 
         public object Clone()
         {
             throw new NotImplementedException();
+        }
+
+        public virtual void UpdateFrom(NotuiElement other)
+        {
+            this.UpdateCommon(other, ApplyTransformMode.All);
+        }
+
+        public virtual void UpdateFrom(ElementPrototype other)
+        {
+            this.UpdateCommon(other, ApplyTransformMode.All);
         }
     }
 }

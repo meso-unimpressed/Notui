@@ -20,7 +20,9 @@ namespace Notui
         public Vector3 WorldSpace { get; set; }
         public Vector3 ElementSpace { get; set; }
         public NotuiElement Element { get; set; }
-        public Matrix4x4 Transformation => Matrix4x4.CreateTranslation(ElementSpace) * Element.DisplayMatrix;
+        public Matrix4x4 Transformation => UseCustomMatrix ? CustomMatrix : Matrix4x4.CreateTranslation(ElementSpace) * Element.DisplayMatrix;
+        public Matrix4x4 CustomMatrix { get; set; } = Matrix4x4.Identity;
+        public bool UseCustomMatrix { get; set; }
 
         public IntersectionPoint(Vector3 wpos, Vector3 epos, NotuiElement element)
         {
@@ -399,6 +401,18 @@ namespace Notui
         public void Mainloop(float deltatime)
         {
             OnMainLoopBegin?.Invoke(this, EventArgs.Empty);
+
+            if(Children.Count > 0)
+            {
+                foreach (var child in Children.Values.ToArray())
+                {
+                    if (child.Dying && child.Dethklok.Elapsed.TotalSeconds > child.FadeOutTime)
+                    {
+                        Children.Remove(child.Id);
+                        Context.RequestRebuild(true, false);
+                    }
+                }
+            }
             
             DisplayTransformation.SubscribeToChange(Id, transformation => InvalidateMatrices());
 
@@ -556,7 +570,7 @@ namespace Notui
 
         public virtual NotuiElement Copy()
         {
-            var newprot = new ElementPrototype(this);
+            var newprot = ElementPrototype.CreateFromInstance(this);
             var newinst = Parent == null ?
                 Context.AddOrUpdateElements(false, newprot)[0] :
                 Parent.UpdateChildren(false, newprot)[0];
@@ -574,8 +588,9 @@ namespace Notui
                 child.InvalidateMatrices();
         }
 
-        public void UpdateFrom(ElementPrototype other)
+        public virtual void UpdateFrom(ElementPrototype other)
         {
+            if(Dying) return;
             if (TransformationFollowTime > 0)
             {
                 this.UpdateCommon(other);
@@ -595,6 +610,8 @@ namespace Notui
         protected NotuiElement(ElementPrototype prototype, NotuiContext context, NotuiElement parent = null)
         {
             this.UpdateCommon(prototype, ApplyTransformMode.All);
+            DisplayTransformation.UpdateFrom(prototype.DisplayTransformation);
+            TargetTransformation.UpdateFrom(prototype.DisplayTransformation);
             Value = prototype.Value?.Copy();
             Context = context;
             Parent = parent;
