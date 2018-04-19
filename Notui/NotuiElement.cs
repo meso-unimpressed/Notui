@@ -56,8 +56,8 @@ namespace Notui
     {
         private Matrix4x4 _displayMatrix;
         private bool _onFadedInInvoked;
-        private StopwatchInteractive _fadeOutDelayTimer = new StopwatchInteractive();
-        private StopwatchInteractive _fadeInDelayTimer = new StopwatchInteractive();
+        public StopwatchInteractive FadeOutDelayTimer = new StopwatchInteractive();
+        public StopwatchInteractive FadeInDelayTimer = new StopwatchInteractive();
 
         public string Name { get; set; }
         public string Id { get; set; } = Guid.NewGuid().ToString();
@@ -444,8 +444,8 @@ namespace Notui
                     Touching[touch] = inters;
             }
 
-            _fadeOutDelayTimer.Mainloop(deltatime);
-            _fadeInDelayTimer.Mainloop(deltatime);
+            FadeOutDelayTimer.Mainloop(deltatime);
+            FadeInDelayTimer.Mainloop(deltatime);
 
             if (FadeInTime > 0)
             {
@@ -620,9 +620,9 @@ namespace Notui
 
             if (AbsoluteFadeInDelay > 0.0f)
             {
-                _fadeInDelayTimer.SetTrigger(TimeSpan.FromSeconds(AbsoluteFadeInDelay));
-                _fadeInDelayTimer.OnTriggerPassed += (sender, args) => FadeInStopwatch.Start();
-                _fadeInDelayTimer.Start();
+                FadeInDelayTimer.SetTrigger(TimeSpan.FromSeconds(AbsoluteFadeInDelay));
+                FadeInDelayTimer.OnTriggerPassed += (sender, args) => FadeInStopwatch.Start();
+                FadeInDelayTimer.Start();
             }
             else FadeInStopwatch.Start();
             Age.Start();
@@ -671,9 +671,13 @@ namespace Notui
             }
             if (AbsoluteFadeOutDelay > 0.0f)
             {
-                _fadeInDelayTimer.SetTrigger(TimeSpan.FromSeconds(AbsoluteFadeInDelay));
-                _fadeInDelayTimer.OnTriggerPassed += (sender, args) => Delete();
-                _fadeInDelayTimer.Start();
+                FadeOutDelayTimer.Reset();
+                FadeOutDelayTimer.SetTrigger(TimeSpan.FromSeconds(AbsoluteFadeOutDelay));
+                FadeOutDelayTimer.OnTriggerPassed += (sender, args) =>
+                {
+                    Delete();
+                };
+                FadeOutDelayTimer.Start();
             }
             else Delete();
         }
