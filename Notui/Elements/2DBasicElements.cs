@@ -112,6 +112,7 @@ namespace Notui.Elements
     {
         public float HoleRadius { get; set; } = 0;
         public float Cycles { get; set; } = 1;
+        public float Phase { get; set; } = 0;
 
         public SegmentElementPrototype(string id = null, ElementPrototype parent = null) :
             base(typeof(SegmentElement), id, parent)
@@ -126,6 +127,7 @@ namespace Notui.Elements
             {
                 HoleRadius = prot.HoleRadius;
                 Cycles = prot.Cycles;
+                Phase = prot.Phase;
             }
         }
 
@@ -136,6 +138,7 @@ namespace Notui.Elements
             {
                 HoleRadius = element.HoleRadius;
                 Cycles = element.Cycles;
+                Phase = element.Phase;
             }
         }
     }
@@ -168,6 +171,7 @@ namespace Notui.Elements
             {
                 HoleRadius = seprot.HoleRadius;
                 Cycles = seprot.Cycles;
+                Phase = seprot.Phase;
             }
         }
 
@@ -178,6 +182,7 @@ namespace Notui.Elements
             {
                 HoleRadius = prot.HoleRadius;
                 Cycles = prot.Cycles;
+                Phase = prot.Phase;
             }
         }
     }
