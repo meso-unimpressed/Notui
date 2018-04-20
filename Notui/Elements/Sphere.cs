@@ -47,10 +47,9 @@ namespace Notui.Elements
             Matrix4x4.Invert(DisplayMatrix, out var invdispmat);
             var trelpos = Vector3.Transform(touch.WorldPosition, invdispmat);
             var treldir = Vector3.TransformNormal(touch.ViewDir, invdispmat);
-            var L = touch.WorldPosition * -1;
             var a = Vector3.Dot(treldir, treldir);
-            var b = 2 * Vector3.Dot(treldir, L);
-            var c = Vector3.Dot(L, L) - 1;
+            var b = 2 * Vector3.Dot(treldir, trelpos);
+            var c = Vector3.Dot(trelpos, trelpos) - 1;
             if (!SolveQuadratic(a, b, c, out var t0, out var t1)) return null;
 
             if (t0 > t1)
@@ -72,7 +71,7 @@ namespace Notui.Elements
             var xd = Vector3.Cross(zd, Vector3.UnitY);
             var yd = Vector3.Cross(xd, zd);
             
-            var ismat = Matrix4x4.CreateWorld(aispos, Vector3.TransformNormal(zd, DisplayMatrix), Vector3.TransformNormal(yd, DisplayMatrix));
+            var ismat = Matrix4x4.CreateWorld(aispos, -Vector3.TransformNormal(zd, DisplayMatrix), Vector3.TransformNormal(yd, DisplayMatrix));
             ispoint.CustomMatrix = ismat;
             ispoint.UseCustomMatrix = true;
 

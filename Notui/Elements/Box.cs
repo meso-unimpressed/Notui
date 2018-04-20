@@ -61,7 +61,10 @@ namespace Notui.Elements
         };
         public override IntersectionPoint HitTest(Touch touch)
         {
-            Matrix4x4.Invert(DisplayMatrix, out var invdispmat);
+            var sizetr = Matrix4x4.CreateScale(Size);
+            //var invsizetr = Matrix4x4.CreateScale(Vector3.One/Size);
+            var scldisp = Matrix4x4.Multiply(sizetr, DisplayMatrix);
+            Matrix4x4.Invert(scldisp, out var invdispmat);
             var trelpos = Vector3.Transform(touch.WorldPosition, invdispmat);
             var treldir = Vector3.TransformNormal(touch.ViewDir, invdispmat);
 
@@ -70,21 +73,26 @@ namespace Notui.Elements
             
             for (int i = 0; i < 6; i++)
             {
-                var pmat = Matrix4x4.CreateWorld(_planeCenters[i] * Size * 0.5f, _planeCenters[i], _planeUps[i]);
+                var pmat = Matrix4x4.CreateWorld(_planeCenters[i] * -0.5f, _planeCenters[i], _planeUps[i]);
                 var hit = Intersections.PlaneRay(trelpos, treldir, pmat, out var aispos, out var pispos);
                 if(!hit) continue;
-                var w = (_planeCenters[(i + 1) % 6] * Size).Length();
-                var h = (_planeCenters[(i - 1) % 6] * Size).Length();
-                hit = pispos.X <= 0.5 * w && pispos.X >= -0.5 * w &&
-                      pispos.Y <= 0.5 * h && pispos.Y >= -0.5 * h;
+                hit = pispos.X <= 0.5 && pispos.X >= -0.5 &&
+                      pispos.Y <= 0.5 && pispos.Y >= -0.5;
                 if(!hit) continue;
                 var diff = aispos - trelpos;
                 if (Vector3.Dot(Vector3.Normalize(diff), treldir) < 0) continue;
                 if (diff.Length() >= d) continue;
 
-                ispoint = new IntersectionPoint(Vector3.Transform(aispos, DisplayMatrix), aispos, this);
+
+
+                ispoint = new IntersectionPoint(Vector3.Transform(aispos, scldisp), aispos, this);
                 ispoint.UseCustomMatrix = true;
-                ispoint.CustomMatrix = Matrix4x4.Multiply(pmat, DisplayMatrix);
+                var locmat = pmat * scldisp;
+
+                //TODO: create a more analitical method for scale correction, this is dumb
+                Matrix4x4.Decompose(locmat, out var locscl, out var qdummy, out var tdummy);
+                var invlocscl = Vector3.One / (locscl / DisplayTransformation.Scale);
+                ispoint.CustomMatrix = Matrix4x4.CreateScale(invlocscl) * Matrix4x4.CreateTranslation(pispos) * locmat;
                 d = diff.Length();
             }
             return ispoint;
