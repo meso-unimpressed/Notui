@@ -148,6 +148,7 @@ namespace Notui.Elements
     {
         public float HoleRadius { get; set; } = 0;
         public float Cycles { get; set; } = 1;
+        public float Phase { get; set; } = 0;
 
         public override IntersectionPoint HitTest(Touch touch)
         {
@@ -155,6 +156,7 @@ namespace Notui.Elements
             var phit = intersection != null;
             if (!phit) return null;
             var polar = Coordinates.RectToPolar(intersection.ElementSpace.xy());
+            polar.X = (float)Math.PI + polar.X + Phase * (float)Math.PI*2;
             var hit = polar.Y * 2 < 1 && polar.Y * 2 >= HoleRadius && (polar.X + Math.PI) % (Math.PI * 2) <= (Cycles * Math.PI * 2);
             return hit ? intersection : null;
         }
