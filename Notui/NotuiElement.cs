@@ -664,14 +664,13 @@ namespace Notui
         /// </summary>
         public void StartDeletion()
         {
-            Dying = true;
+            if(Dying) return;
             foreach (var child in Children.Values)
             {
                 child.StartDeletion();
             }
             if (AbsoluteFadeOutDelay > 0.0f)
             {
-                FadeOutDelayTimer.Reset();
                 FadeOutDelayTimer.SetTrigger(TimeSpan.FromSeconds(AbsoluteFadeOutDelay));
                 FadeOutDelayTimer.OnTriggerPassed += (sender, args) =>
                 {
@@ -680,6 +679,7 @@ namespace Notui
                 FadeOutDelayTimer.Start();
             }
             else Delete();
+            Dying = true;
         }
 
         protected void Delete()
