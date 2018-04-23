@@ -155,5 +155,10 @@ namespace Notui
         /// Optional environment specific object for implementations so Value is not polluted
         /// </summary>
         AuxiliaryObject EnvironmentObject { get; set; }
+
+        /// <summary>
+        /// Hittest is only successful if parent hittest is also successful
+        /// </summary>
+        bool OnlyHitIfParentIsHit { get; set; }
     }
 }

@@ -14,23 +14,6 @@ using SharpDX.RawInput;
 
 namespace Notui
 {
-    public class IntersectionPoint
-    {
-        public Vector3 WorldSpace { get; set; }
-        public Vector3 ElementSpace { get; set; }
-        public NotuiElement Element { get; set; }
-        public Matrix4x4 Transformation => UseCustomMatrix ? CustomMatrix : Matrix4x4.CreateTranslation(ElementSpace) * Element.DisplayMatrix;
-        public Matrix4x4 CustomMatrix { get; set; } = Matrix4x4.Identity;
-        public bool UseCustomMatrix { get; set; }
-
-        public IntersectionPoint(Vector3 wpos, Vector3 epos, NotuiElement element)
-        {
-            WorldSpace = wpos;
-            ElementSpace = epos;
-            Element = element;
-        }
-    }
-
     public class TouchInteractionEventArgs : EventArgs
     {
         public Touch Touch;
@@ -55,9 +38,11 @@ namespace Notui
     public abstract class NotuiElement : IElementCommon, ICloneable<NotuiElement>, IUpdateable<ElementPrototype>, IMainlooping
     {
         private Matrix4x4 _displayMatrix;
+        private Matrix4x4 _invDisplayMatrix;
         private bool _onFadedInInvoked;
         public StopwatchInteractive FadeOutDelayTimer = new StopwatchInteractive();
         public StopwatchInteractive FadeInDelayTimer = new StopwatchInteractive();
+        private SubContext _subContext;
 
         public string Name { get; set; }
         public string Id { get; set; } = Guid.NewGuid().ToString();
@@ -77,7 +62,8 @@ namespace Notui
         public List<InteractionBehavior> Behaviors { get; set; } = new List<InteractionBehavior>();
         public AttachedValues Value { get; set; }
         public AuxiliaryObject EnvironmentObject { get; set; }
-        
+        public bool OnlyHitIfParentIsHit { get; set; }
+
         public ElementTransformation DisplayTransformation { get; set; } = new ElementTransformation();
         public ElementTransformation TargetTransformation { get; set; } = new ElementTransformation();
 
@@ -182,9 +168,44 @@ namespace Notui
                 if (!DisplayMatrixCached)
                 {
                     _displayMatrix = GetDisplayTransform();
+                    Matrix4x4.Invert(_displayMatrix, out _invDisplayMatrix);
                     DisplayMatrixCached = true;
                 }
                 return _displayMatrix;
+            }
+        }
+        /// <summary>
+        /// Inverse of absolute world transformation.
+        /// </summary>
+        public Matrix4x4 InverseDisplayMatrix
+        {
+            get
+            {
+                if (!DisplayMatrixCached)
+                {
+                    _displayMatrix = GetDisplayTransform();
+                    Matrix4x4.Invert(_displayMatrix, out _invDisplayMatrix);
+                    DisplayMatrixCached = true;
+                }
+                return _invDisplayMatrix;
+            }
+        }
+
+        /// <summary>
+        /// If not null this element contain their own Notui context. This is good for viewports, clipping and arbitrary surface deformation.
+        /// </summary>
+        /// <remarks>
+        /// This is like iframes for HTML. SubContexts are not replacing children and elements inside SubContexts are not queried with Opaq.
+        /// But unlike iframes in HTML nothing stops you here to have logical connections between different SubContexts of different elements.
+        /// </remarks>
+        public SubContext SubContext
+        {
+            get => _subContext;
+            set
+            {
+                if (value == null)
+                    _subContext.Dispose();
+                _subContext = value;
             }
         }
 
@@ -335,11 +356,26 @@ namespace Notui
         }
 
         /// <summary>
-        /// Pure hittest function used by the context
+        /// Pure hittest function used by inherited element classes
         /// </summary>
         /// <param name="touch">Current touch</param>
         /// <returns>Return null when the element is not hit by the touch and return the intersection coordinates otherwise</returns>
-        public abstract IntersectionPoint HitTest(Touch touch);
+        public abstract IntersectionPoint PureHitTest(Touch touch);
+
+        /// <summary>
+        /// Pure hittest function including parent hitting constraint as well used by the context
+        /// </summary>
+        /// <param name="touch">Current touch</param>
+        /// <returns>Return null when the element is not hit by the touch and return the intersection coordinates otherwise</returns>
+        public IntersectionPoint HitTest(Touch touch)
+        {
+            if (Parent == null || !OnlyHitIfParentIsHit)
+                return PureHitTest(touch);
+            else
+            {
+                return Parent.HitTest(touch) != null ? PureHitTest(touch) : null;
+            }
+        }
 
         /// <summary>
         /// Used for managing side effects of touch interaction
@@ -591,7 +627,7 @@ namespace Notui
                 TargetTransformation.UpdateFrom(other.DisplayTransformation);
             }
             else this.UpdateCommon(other, other.TransformApplication);
-            Value?.UpdateFrom(other.Value);
+
             UpdateChildren(true, other.Children.Values.ToArray());
         }
 
@@ -606,7 +642,7 @@ namespace Notui
             this.UpdateCommon(prototype, ApplyTransformMode.All);
             DisplayTransformation.UpdateFrom(prototype.DisplayTransformation);
             TargetTransformation.UpdateFrom(prototype.DisplayTransformation);
-            Value = prototype.Value?.Copy();
+            //Value = prototype.Value?.Copy();
             Context = context;
             Parent = parent;
 
@@ -626,6 +662,11 @@ namespace Notui
             }
             else FadeInStopwatch.Start();
             Age.Start();
+
+            if (prototype.SubContextOptions != null)
+            {
+                SubContext = new SubContext(this, prototype.SubContextOptions);
+            }
         }
 
         protected void FireInteractionTouchBegin(Touch touch)

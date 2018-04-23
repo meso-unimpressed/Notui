@@ -59,11 +59,11 @@ namespace Notui.Elements
             new Vector3(0, 0, -1),
             new Vector3(-1, 0, 0)
         };
-        public override IntersectionPoint HitTest(Touch touch)
+        public override IntersectionPoint PureHitTest(Touch touch)
         {
             var sizetr = Matrix4x4.CreateScale(Size);
             //var invsizetr = Matrix4x4.CreateScale(Vector3.One/Size);
-            var scldisp = Matrix4x4.Multiply(sizetr, DisplayMatrix);
+            var scldisp = sizetr * DisplayMatrix;
             Matrix4x4.Invert(scldisp, out var invdispmat);
             var trelpos = Vector3.Transform(touch.WorldPosition, invdispmat);
             var treldir = Vector3.TransformNormal(touch.ViewDir, invdispmat);
@@ -83,16 +83,14 @@ namespace Notui.Elements
                 if (Vector3.Dot(Vector3.Normalize(diff), treldir) < 0) continue;
                 if (diff.Length() >= d) continue;
 
-
-
-                ispoint = new IntersectionPoint(Vector3.Transform(aispos, scldisp), aispos, this);
-                ispoint.UseCustomMatrix = true;
                 var locmat = pmat * scldisp;
 
                 //TODO: create a more analitical method for scale correction, this is dumb
                 Matrix4x4.Decompose(locmat, out var locscl, out var qdummy, out var tdummy);
                 var invlocscl = Vector3.One / (locscl / DisplayTransformation.Scale);
-                ispoint.CustomMatrix = Matrix4x4.CreateScale(invlocscl) * Matrix4x4.CreateTranslation(pispos) * locmat;
+
+                var smat = Matrix4x4.CreateScale(invlocscl) * Matrix4x4.CreateTranslation(pispos) * locmat;
+                ispoint = new IntersectionPoint(Vector3.Transform(aispos, scldisp), aispos, pispos, smat, this, touch);
                 d = diff.Length();
             }
             return ispoint;

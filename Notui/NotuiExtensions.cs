@@ -99,8 +99,50 @@ namespace Notui
 
             if (element is NotuiElement elinst)
             {
-                if (prototype is ElementPrototype prot) elinst.Prototype = prot;
-                if (prototype is NotuiElement el) elinst.Prototype = el.Prototype;
+                if (prototype is ElementPrototype prot)
+                {
+                    elinst.Prototype = prot;
+
+                    if (prot.SubContextOptions == null)
+                        elinst.SubContext = null;
+                    else
+                    {
+                        if (elinst.SubContext == null)
+                            elinst.SubContext = new SubContext(elinst, prot.SubContextOptions);
+                        else
+                        {
+                            elinst.SubContext.UpdateFrom(prot.SubContextOptions);
+                        }
+                    }
+                }
+                if (prototype is NotuiElement el)
+                {
+                    elinst.Prototype = el.Prototype;
+
+                    if (el.SubContext == null)
+                        elinst.SubContext = null;
+                    else
+                    {
+                        if (elinst.SubContext == null)
+                            elinst.SubContext = new SubContext(elinst, el.SubContext.Options);
+                        else
+                        {
+                            elinst.SubContext.UpdateFrom(el.SubContext.Options);
+                        }
+                    }
+                }
+            }
+
+            if (element is ElementPrototype elprot)
+            {
+                if (prototype is ElementPrototype prot)
+                {
+                    elprot.SubContextOptions = prot.SubContextOptions?.Copy();
+                }
+                if (prototype is NotuiElement el)
+                {
+                    elprot.SubContextOptions = el.SubContext.Options?.Copy();
+                }
             }
 
             element.Name = prototype.Name;
@@ -112,6 +154,17 @@ namespace Notui
             element.FadeInDelay = prototype.FadeInDelay;
             element.TransformationFollowTime = prototype.TransformationFollowTime;
             element.Behaviors = prototype.Behaviors;
+            element.OnlyHitIfParentIsHit = prototype.OnlyHitIfParentIsHit;
+            if (prototype.Value == null)
+                element.Value = null;
+            else
+            {
+                if (element.Value == null)
+                {
+                    element.Value = new AttachedValues();
+                }
+                element.Value.UpdateFrom(prototype.Value);
+            }
         }
 
         /// <summary>

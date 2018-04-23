@@ -36,11 +36,39 @@ namespace Notui.Elements
                 DisplayMatrix,
                 out var ispoint,
                 out var planarpoint);
-            return hit ? new IntersectionPoint(ispoint, planarpoint, this) : null;
+            return hit ? new IntersectionPoint(ispoint, planarpoint, this, touch) : null;
         }
 
         protected PlanarElement(ElementPrototype prototype, NotuiContext context, NotuiElement parent = null) :
             base(prototype, context, parent) { }
+    }
+
+    /// <inheritdoc />
+    /// <summary>
+    /// Infinite planar element prototype. Good for backgrounds or scrolling
+    /// </summary>
+    public class InfinitePlaneElementPrototype : ElementPrototype
+    {
+        public InfinitePlaneElementPrototype(string id = null, ElementPrototype parent = null) :
+            base(typeof(InfinitePlaneElement), id, parent)
+        { }
+
+        public InfinitePlaneElementPrototype(NotuiElement fromInstance, bool newId = true) : base(fromInstance, newId) { }
+    }
+    /// <inheritdoc />
+    /// <summary>
+    /// Infinite planar element. Good for backgrounds or scrolling
+    /// </summary>
+    public class InfinitePlaneElement : PlanarElement
+    {
+        public override IntersectionPoint PureHitTest(Touch touch)
+        {
+            return PreparePlanarShapeHitTest(touch);
+        }
+
+        public InfinitePlaneElement(ElementPrototype prototype, NotuiContext context, NotuiElement parent = null) :
+            base(prototype, context, parent)
+        { }
     }
 
     /// <inheritdoc />
@@ -60,7 +88,7 @@ namespace Notui.Elements
     /// </summary>
     public class RectangleElement : PlanarElement
     {
-        public override IntersectionPoint HitTest(Touch touch)
+        public override IntersectionPoint PureHitTest(Touch touch)
         {
             var intersection = PreparePlanarShapeHitTest(touch);
             var phit = intersection != null;
@@ -92,12 +120,20 @@ namespace Notui.Elements
     /// </summary>
     public class CircleElement : PlanarElement
     {
-        public override IntersectionPoint HitTest(Touch touch)
+        public override IntersectionPoint PureHitTest(Touch touch)
         {
             var intersection = PreparePlanarShapeHitTest(touch);
             var phit = intersection != null;
             if (!phit) return null;
-            return intersection.ElementSpace.xy().Length() < 0.5 ? intersection : null;
+
+            var uvpos = Coordinates.RectToPolar(intersection.ElementSpace.xy());
+            uvpos.X = uvpos.X / (float)Math.PI - 1;
+            uvpos.Y = uvpos.Y * 2 - 1;
+            intersection.SurfaceSpace = new Vector3(uvpos, 0);
+
+
+
+            return uvpos.Y < 0.5 ? intersection : null;
         }
 
         public CircleElement(ElementPrototype prototype, NotuiContext context, NotuiElement parent = null) :
@@ -153,14 +189,16 @@ namespace Notui.Elements
         public float Cycles { get; set; } = 1;
         public float Phase { get; set; } = 0;
 
-        public override IntersectionPoint HitTest(Touch touch)
+        public override IntersectionPoint PureHitTest(Touch touch)
         {
             var intersection = PreparePlanarShapeHitTest(touch);
             var phit = intersection != null;
             if (!phit) return null;
             var polar = Coordinates.RectToPolar(intersection.ElementSpace.xy());
-            polar.X = (float)Math.PI + polar.X + Phase * (float)Math.PI*2;
-            var hit = polar.Y * 2 < 1 && polar.Y * 2 >= HoleRadius && (polar.X + Math.PI) % (Math.PI * 2) <= (Cycles * Math.PI * 2);
+            polar.X = (float)Math.PI + (polar.X - Phase * (float)Math.PI*2) * Math.Sign(Cycles);
+            var rad = Math.Max(HoleRadius, 1);
+            var hrad = Math.Min(HoleRadius, 1);
+            var hit = polar.Y * 2 < rad && polar.Y * 2 >= hrad && (polar.X + Math.PI) % (Math.PI * 2) <= Math.Abs(Cycles * Math.PI * 2);
             return hit ? intersection : null;
         }
 
@@ -228,7 +266,7 @@ namespace Notui.Elements
     {
         public List<Vector2> Vertices { get; private set; } = new List<Vector2>();
 
-        public override IntersectionPoint HitTest(Touch touch)
+        public override IntersectionPoint PureHitTest(Touch touch)
         {
             if (Vertices.Count < 3)
                 return null;

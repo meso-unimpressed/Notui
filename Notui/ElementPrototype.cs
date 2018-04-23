@@ -65,6 +65,7 @@ namespace Notui
             else
             {
                 res.UpdateFrom(element);
+                res.SubContextOptions = element.SubContext?.Options;
                 return res;
             }
         }
@@ -82,6 +83,7 @@ namespace Notui
         public List<InteractionBehavior> Behaviors { get; set; } = new List<InteractionBehavior>();
         public AttachedValues Value { get; set; }
         public AuxiliaryObject EnvironmentObject { get; set; }
+        public bool OnlyHitIfParentIsHit { get; set; }
 
         /// <summary>
         /// Selectively apply transform components. Default is All
@@ -104,11 +106,20 @@ namespace Notui
         public Type InstanceType { get; }
 
         /// <summary>
+        /// If not null element instances will contain their own Notui contexts. This is good for viewports, clipping and arbitrary surface deformation.
+        /// </summary>
+        /// <remarks>
+        /// This is like iframes for HTML. SubContexts are not replacing children and elements inside SubContexts are not queried with Opaq.
+        /// But unlike iframes in HTML nothing stops you here to have logical connections between different SubContexts of different elements.
+        /// </remarks>
+        public SubContextOptions SubContextOptions { get; set; }
+
+        /// <summary>
         /// Base constructor
         /// </summary>
         /// <param name="insttype">The type of the element instances which this prototype will instantiate</param>
         /// <param name="id">Optional external unique Id. Use carefully!</param>
-        public ElementPrototype(Type insttype, string id = null, ElementPrototype parent = null)
+        protected ElementPrototype(Type insttype, string id = null, ElementPrototype parent = null)
         {
             if (!insttype.Is(typeof(NotuiElement)))
             {
@@ -133,7 +144,7 @@ namespace Notui
             InstanceType = fromInstance.GetType();
             this.UpdateCommon(fromInstance, ApplyTransformMode.All);
 
-            Value = fromInstance.Value?.Copy();
+            //Value = fromInstance.Value?.Copy();
             EnvironmentObject = fromInstance.EnvironmentObject.Copy();
             Parent = fromInstance.Parent.Prototype;
 
@@ -167,7 +178,8 @@ namespace Notui
         /// <returns></returns>
         public NotuiElement Instantiate(NotuiContext context, NotuiElement parent = null)
         {
-            return (NotuiElement)GetElementConstructor().Invoke(new object[] { this, context, parent });
+            var res = (NotuiElement)GetElementConstructor().Invoke(new object[] { this, context, parent });
+            return res;
         }
 
         public virtual ElementPrototype Copy()
@@ -179,7 +191,7 @@ namespace Notui
 
         public object Clone()
         {
-            throw new NotImplementedException();
+            return Copy();
         }
 
         public virtual void UpdateFrom(NotuiElement other)

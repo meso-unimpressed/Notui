@@ -89,6 +89,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="SubContext.cs" />
     <Compile Include="Elements\2DBasicElements.cs" />
     <Compile Include="Elements\Box.cs" />
     <Compile Include="Elements\Sphere.cs" />
@@ -101,6 +102,7 @@
     <Compile Include="ElementPrototype.cs" />
     <Compile Include="ElementTransformation.cs" />
     <Compile Include="InteractionBehavior.cs" />
+    <Compile Include="IntersectionPoint.cs" />
     <Compile Include="NotuiContext.cs" />
     <Compile Include="NotuiElement.cs" />
     <Compile Include="NotuiExtensions.cs" />

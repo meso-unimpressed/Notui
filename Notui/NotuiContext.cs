@@ -24,6 +24,11 @@ namespace Notui
         /// </summary>
         public bool UseParallel { get; set; } = true;
         /// <summary>
+        /// Execute from Parent to child or on the FlatElements
+        /// </summary>
+        public bool MaintainExecutionOrder { get; set; } = true;
+
+        /// <summary>
         /// Consider touches to be new before the age of this amount of frames
         /// </summary>
         public int ConsiderNewBefore { get; set; } = 1;
@@ -296,14 +301,14 @@ namespace Notui
                 var intersections = FlatElements.Select(el =>
                     {
                         var intersection = el.HitTest(touch);
-                        if (intersection != null) intersection.Element = el;
+                        //if (intersection != null) intersection.Element = el;
                         return intersection;
                     })
                     .Where(insec => insec != null)
                     .Where(insec => insec.Element.Active)
                     .OrderBy(insec =>
                     {
-                        var screenpos = Vector4.Transform(new Vector4(insec.WorldSpace, 1), View * aspproj);
+                        var screenpos = Vector4.Transform(new Vector4(insec.WorldTransform.Translation, 1), View * aspproj);
                         return screenpos.Z / screenpos.W;
                     });
 
@@ -324,19 +329,40 @@ namespace Notui
             else Touches.Values.ForEach(ProcessTouches);
 
             // Do element logic
-            void ProcessElements(NotuiElement el)
-            {
-                foreach (var touch in Touches.Values)
-                {
-                    el.ProcessTouch(touch);
-                }
-                el.Mainloop(deltatime);
-            }
-            if(UseParallel) FlatElements.AsParallel().ForAll(ProcessElements);
-            else FlatElements.ForEach(ProcessElements);
+            if(MaintainExecutionOrder) HierarchicalExecution();
+            else FlatExecution();
 
             MouseDelta?.Mainloop(deltatime);
             OnMainLoopEnd?.Invoke(this, EventArgs.Empty);
+        }
+
+        private void ProcessElements(NotuiElement el)
+        {
+            foreach (var touch in Touches.Values)
+            {
+                el.ProcessTouch(touch);
+            }
+            el.Mainloop(DeltaTime);
+        }
+
+        private void FlatExecution()
+        {
+            if (UseParallel) FlatElements.AsParallel().ForAll(ProcessElements);
+            else FlatElements.ForEach(ProcessElements);
+        }
+
+        private void HierarchicalExecution()
+        {
+            void RecursiveChildrenExec(NotuiElement recel)
+            {
+                ProcessElements(recel);
+                if (recel.Children.Count <= 0) return;
+                //if (UseParallel) recel.Children.Values.AsParallel().ForAll(RecursiveChildrenExec);
+                /*else*/ recel.Children.Values.ForEach(RecursiveChildrenExec);
+            }
+
+            if (UseParallel) RootElements.Values.AsParallel().ForAll(RecursiveChildrenExec);
+            else RootElements.Values.ForEach(RecursiveChildrenExec);
         }
 
         /// <summary>

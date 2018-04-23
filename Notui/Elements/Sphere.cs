@@ -5,6 +5,7 @@ using System.Linq;
 using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
+using md.stdl.Mathematics;
 
 namespace Notui.Elements
 {
@@ -27,7 +28,7 @@ namespace Notui.Elements
                 x0 = 0; x1 = 0;
                 return false;
             }
-            else if (discr == 0) x0 = x1 = -0.5f * b / a;
+            else if (discr == 0.0f) x0 = x1 = -0.5f * b / a;
             else
             {
                 float q = (b > 0) ?
@@ -42,9 +43,9 @@ namespace Notui.Elements
             }
             return true;
         }
-        public override IntersectionPoint HitTest(Touch touch)
+        public override IntersectionPoint PureHitTest(Touch touch)
         {
-            Matrix4x4.Invert(DisplayMatrix, out var invdispmat);
+            var invdispmat = InverseDisplayMatrix;
             var trelpos = Vector3.Transform(touch.WorldPosition, invdispmat);
             var treldir = Vector3.TransformNormal(touch.ViewDir, invdispmat);
             var a = Vector3.Dot(treldir, treldir);
@@ -65,15 +66,17 @@ namespace Notui.Elements
 
             var rispos = treldir * t0 + trelpos;
             var aispos = Vector3.Transform(rispos, DisplayMatrix);
-            var ispoint = new IntersectionPoint(aispos, rispos, this);
 
             var zd = Vector3.Normalize(rispos);
             var xd = Vector3.Cross(zd, Vector3.UnitY);
             var yd = Vector3.Cross(xd, zd);
+
+            var uvpos = Coordinates.RectToPolar(rispos.xz());
+            uvpos.X = uvpos.X / (float) Math.PI - 1;
+            uvpos.Y = rispos.Y;
             
             var ismat = Matrix4x4.CreateWorld(aispos, -Vector3.TransformNormal(zd, DisplayMatrix), Vector3.TransformNormal(yd, DisplayMatrix));
-            ispoint.CustomMatrix = ismat;
-            ispoint.UseCustomMatrix = true;
+            var ispoint = new IntersectionPoint(aispos, rispos, new Vector3(uvpos, 0), ismat, this, touch);
 
             return ispoint;
         }

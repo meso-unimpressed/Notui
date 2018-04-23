@@ -89,6 +89,7 @@ namespace Notui
             Scale = Vector3.One;
             Rotation = Quaternion.Identity;
             _matrix = Matrix4x4.Identity;
+            _invMatrix = Matrix4x4.Identity;
             Cached = true;
         }
         
@@ -168,8 +169,26 @@ namespace Notui
                 _matrix = Matrix4x4.CreateScale(Scale) *
                           Matrix4x4.CreateFromQuaternion(Rotation) *
                           Matrix4x4.CreateTranslation(Position);
+                Matrix4x4.Invert(_matrix, out _invMatrix);
                 Cached = true;
                 return _matrix;
+            }
+        }
+
+        /// <summary>
+        /// Inverse Matrix transformation
+        /// </summary>
+        public Matrix4x4 InverseMatrix
+        {
+            get
+            {
+                if (Cached) return _invMatrix;
+                _matrix = Matrix4x4.CreateScale(Scale) *
+                          Matrix4x4.CreateFromQuaternion(Rotation) *
+                          Matrix4x4.CreateTranslation(Position);
+                Matrix4x4.Invert(_matrix, out _invMatrix);
+                Cached = true;
+                return _invMatrix;
             }
         }
 
@@ -210,6 +229,7 @@ namespace Notui
             new Dictionary<string, Action<ElementTransformation>>();
 
         private Matrix4x4 _matrix;
+        private Matrix4x4 _invMatrix;
         private Vector3 _position;
         private Vector3 _scale;
         private Quaternion _rotation;
