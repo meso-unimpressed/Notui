@@ -29,6 +29,12 @@ namespace Notui.Behaviors
         public Vector2 AxisCoeff { get; set; } = new Vector2(1.0f);
 
         /// <summary>
+        /// Use the surface space to fetch velocity
+        /// </summary>
+        [BehaviorParameter]
+        public bool UseSurfaceSpace { get; set; } = false;
+
+        /// <summary>
         /// Default values at creation
         /// </summary>
         [BehaviorParameter]
@@ -96,25 +102,25 @@ namespace Notui.Behaviors
             if(Constrain && Vector2.Distance(LimitMin, LimitMax) < 0.00001) return;
             if(element.Touching.IsEmpty) return;
 
-            Touch fastesttouch = null;
+            KeyValuePair<Touch, IntersectionPoint> fastesttouch;
             try
             {
                 if (MouseMask.Length == 0)
-                    fastesttouch = element.Touching.Keys.OrderByDescending(t => t.Velocity.LengthSquared()).First();
+                    fastesttouch = element.Touching.OrderByDescending(t => t.Key.Velocity.LengthSquared()).First();
                 else if (MouseMask.Length == 1 && MouseMask[0] == MouseButtons.Left)
                 {
-                    fastesttouch = (from touch in element.Touching.Keys
-                            where touch.AttachadMouse == null || touch.MouseDelta.MouseClicks.Values.Where(mc => mc.Button != MouseButtons.Left).All(mc => !mc.Pressed)
+                    fastesttouch = (from touch in element.Touching
+                            where touch.Key.AttachadMouse == null || touch.Key.MouseDelta.MouseClicks.Values.Where(mc => mc.Button != MouseButtons.Left).All(mc => !mc.Pressed)
                             select touch)
-                        .OrderByDescending(t => t.Velocity.LengthSquared()).First();
+                        .OrderByDescending(t => t.Key.Velocity.LengthSquared()).First();
                 }
                 else
                 {
-                    fastesttouch = (from touch in element.Touching.Keys
-                        where touch.AttachadMouse != null
-                        where touch.MouseDelta.MouseClicks.Values.Where(mc => mc.Pressed).All(mc => MouseMask.Contains(mc.Button))
+                    fastesttouch = (from touch in element.Touching
+                        where touch.Key.AttachadMouse != null
+                        where touch.Key.MouseDelta.MouseClicks.Values.Where(mc => mc.Pressed).All(mc => MouseMask.Contains(mc.Button))
                         select touch)
-                        .OrderByDescending(t => t.Velocity.LengthSquared()).First();
+                        .OrderByDescending(t => t.Key.Velocity.LengthSquared()).First();
                 }
             }
             catch
@@ -129,7 +135,17 @@ namespace Notui.Behaviors
                 values = element.Value.Values;
             }
 
-            var vel = fastesttouch.GetPlanarVelocity(element.DisplayMatrix, element.Context, out var cpos, out var ppos);
+            Vector3 vel;
+            if (UseSurfaceSpace)
+            {
+                var origis = fastesttouch.Value;
+                if (origis == null) return;
+                element.PureHitTest(fastesttouch.Key, true, out var previs);
+                if(previs == null) return;
+                vel = (origis.SurfaceSpace - previs.SurfaceSpace) * 0.5f;
+            }
+            else vel = fastesttouch.Key.GetPlanarVelocity(element.DisplayMatrix, element.Context, out var cpos, out var ppos);
+
             if(Constrain)
             {
                 values[HorizontalOffs] = Max(LimitMin.X, Min(LimitMax.X, values[HorizontalOffs] + vel.X * AxisCoeff.X * 0.5f));
