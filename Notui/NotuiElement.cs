@@ -204,7 +204,7 @@ namespace Notui
             set
             {
                 if (value == null)
-                    _subContext.Dispose();
+                    _subContext?.Dispose();
                 _subContext = value;
             }
         }
@@ -359,21 +359,27 @@ namespace Notui
         /// Pure hittest function used by inherited element classes
         /// </summary>
         /// <param name="touch">Current touch</param>
+        /// <param name="prevpos">Calculate Intersection point for previous position</param>
+        /// <param name="persistentIspoint">
+        /// Optional persistent intersection point data in case it makes sense to intersect beyond the boundaries of an element.
+        /// Just assign the same as the return if not
+        /// </param>
         /// <returns>Return null when the element is not hit by the touch and return the intersection coordinates otherwise</returns>
-        public abstract IntersectionPoint PureHitTest(Touch touch);
+        public abstract IntersectionPoint PureHitTest(Touch touch, bool prevpos, out IntersectionPoint persistentIspoint);
 
         /// <summary>
         /// Pure hittest function including parent hitting constraint as well used by the context
         /// </summary>
         /// <param name="touch">Current touch</param>
+        /// <param name="prevpos">Calculate Intersection point for previous position</param>
         /// <returns>Return null when the element is not hit by the touch and return the intersection coordinates otherwise</returns>
-        public IntersectionPoint HitTest(Touch touch)
+        public IntersectionPoint HitTest(Touch touch, bool prevpos = false)
         {
             if (Parent == null || !OnlyHitIfParentIsHit)
-                return PureHitTest(touch);
+                return PureHitTest(touch, prevpos, out var dummy);
             else
             {
-                return Parent.HitTest(touch) != null ? PureHitTest(touch) : null;
+                return Parent.HitTest(touch) != null ? PureHitTest(touch, prevpos, out var dummy) : null;
             }
         }
 

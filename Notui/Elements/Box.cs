@@ -59,14 +59,15 @@ namespace Notui.Elements
             new Vector3(0, 0, -1),
             new Vector3(-1, 0, 0)
         };
-        public override IntersectionPoint PureHitTest(Touch touch)
+        public override IntersectionPoint PureHitTest(Touch touch, bool prevpos, out IntersectionPoint persistentIspoint)
         {
+            touch.GetPreviousWorldPosition(Context, out var popos, out var pdir);
             var sizetr = Matrix4x4.CreateScale(Size);
             //var invsizetr = Matrix4x4.CreateScale(Vector3.One/Size);
             var scldisp = sizetr * DisplayMatrix;
             Matrix4x4.Invert(scldisp, out var invdispmat);
-            var trelpos = Vector3.Transform(touch.WorldPosition, invdispmat);
-            var treldir = Vector3.TransformNormal(touch.ViewDir, invdispmat);
+            var trelpos = Vector3.Transform(prevpos ? popos : touch.WorldPosition, invdispmat);
+            var treldir = Vector3.TransformNormal(prevpos ? pdir : touch.ViewDir, invdispmat);
 
             IntersectionPoint ispoint = null;
             float d = float.MaxValue;
@@ -93,6 +94,8 @@ namespace Notui.Elements
                 ispoint = new IntersectionPoint(Vector3.Transform(aispos, scldisp), aispos, pispos, smat, this, touch);
                 d = diff.Length();
             }
+
+            persistentIspoint = ispoint;
             return ispoint;
         }
 

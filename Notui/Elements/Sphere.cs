@@ -43,11 +43,13 @@ namespace Notui.Elements
             }
             return true;
         }
-        public override IntersectionPoint PureHitTest(Touch touch)
+        public override IntersectionPoint PureHitTest(Touch touch, bool prevpos, out IntersectionPoint persistentIspoint)
         {
+            persistentIspoint = null;
+            touch.GetPreviousWorldPosition(Context, out var popos, out var pdir);
             var invdispmat = InverseDisplayMatrix;
-            var trelpos = Vector3.Transform(touch.WorldPosition, invdispmat);
-            var treldir = Vector3.TransformNormal(touch.ViewDir, invdispmat);
+            var trelpos = Vector3.Transform(prevpos ? popos : touch.WorldPosition, invdispmat);
+            var treldir = Vector3.TransformNormal(prevpos ? pdir : touch.ViewDir, invdispmat);
             var a = Vector3.Dot(treldir, treldir);
             var b = 2 * Vector3.Dot(treldir, trelpos);
             var c = Vector3.Dot(trelpos, trelpos) - 1;
@@ -78,6 +80,7 @@ namespace Notui.Elements
             var ismat = Matrix4x4.CreateWorld(aispos, -Vector3.TransformNormal(zd, DisplayMatrix), Vector3.TransformNormal(yd, DisplayMatrix));
             var ispoint = new IntersectionPoint(aispos, rispos, new Vector3(uvpos, 0), ismat, this, touch);
 
+            persistentIspoint = ispoint;
             return ispoint;
         }
 

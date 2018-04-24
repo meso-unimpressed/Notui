@@ -4,6 +4,8 @@ using System.Linq;
 using System.Numerics;
 using md.stdl.Interaction;
 using md.stdl.Mathematics;
+using VVVV.Utils.VMath;
+using Matrix4x4 = System.Numerics.Matrix4x4;
 
 namespace Notui.Elements
 {
@@ -17,7 +19,8 @@ namespace Notui.Elements
         {
             foreach (var touch in Touching.Keys)
             {
-                Touching[touch] = PreparePlanarShapeHitTest(touch);
+                PureHitTest(touch, false, out var persistent);
+                Touching[touch] = persistent;
             }
         }
 
@@ -25,14 +28,16 @@ namespace Notui.Elements
         /// General Hittesting on the infinite plane defined by the element transforms
         /// </summary>
         /// <param name="touch">The touch to be tested</param>
+        /// <param name="prevpos">Calculate Intersection point for previous position</param>
         /// <returns>If the touch hits then an Intersection point otherwise null</returns>
-        public IntersectionPoint PreparePlanarShapeHitTest(Touch touch)
+        public IntersectionPoint PreparePlanarShapeHitTest(Touch touch, bool prevpos)
         {
             // when first hit consider the display transformation then
             // for the rest of the interaction consider the interaction transform
+            touch.GetPreviousWorldPosition(Context, out var popos, out var pdir);
             var hit = Intersections.PlaneRay(
-                touch.WorldPosition,
-                touch.ViewDir,
+                prevpos ? popos : touch.WorldPosition,
+                prevpos ? pdir : touch.ViewDir,
                 DisplayMatrix,
                 out var ispoint,
                 out var planarpoint);
@@ -61,9 +66,10 @@ namespace Notui.Elements
     /// </summary>
     public class InfinitePlaneElement : PlanarElement
     {
-        public override IntersectionPoint PureHitTest(Touch touch)
+        public override IntersectionPoint PureHitTest(Touch touch, bool prevpos, out IntersectionPoint persistentIspoint)
         {
-            return PreparePlanarShapeHitTest(touch);
+            persistentIspoint = PreparePlanarShapeHitTest(touch, prevpos);
+            return persistentIspoint;
         }
 
         public InfinitePlaneElement(ElementPrototype prototype, NotuiContext context, NotuiElement parent = null) :
@@ -88,13 +94,18 @@ namespace Notui.Elements
     /// </summary>
     public class RectangleElement : PlanarElement
     {
-        public override IntersectionPoint PureHitTest(Touch touch)
+        public override IntersectionPoint PureHitTest(Touch touch, bool prevpos, out IntersectionPoint persistentIspoint)
         {
-            var intersection = PreparePlanarShapeHitTest(touch);
+            var intersection = PreparePlanarShapeHitTest(touch, prevpos);
             var phit = intersection != null;
-            if (!phit) return null;
+            if (!phit)
+            {
+                persistentIspoint = null;
+                return null;
+            }
             var hit = intersection.ElementSpace.X <= 0.5 && intersection.ElementSpace.X >= -0.5 &&
                       intersection.ElementSpace.Y <= 0.5 && intersection.ElementSpace.Y >= -0.5;
+            persistentIspoint = intersection;
             return hit ? intersection : null;
         }
 
@@ -120,20 +131,29 @@ namespace Notui.Elements
     /// </summary>
     public class CircleElement : PlanarElement
     {
-        public override IntersectionPoint PureHitTest(Touch touch)
+        public override IntersectionPoint PureHitTest(Touch touch, bool prevpos, out IntersectionPoint persistentIspoint)
         {
-            var intersection = PreparePlanarShapeHitTest(touch);
+            var intersection = PreparePlanarShapeHitTest(touch, prevpos);
             var phit = intersection != null;
-            if (!phit) return null;
+            if (!phit)
+            {
+                persistentIspoint = null;
+                return null;
+            }
 
-            var uvpos = Coordinates.RectToPolar(intersection.ElementSpace.xy());
-            uvpos.X = uvpos.X / (float)Math.PI - 1;
-            uvpos.Y = uvpos.Y * 2 - 1;
+            //TODO: Ugly as fuck, fix phase like a human being
+            var uvpos = Coordinates.RectToPolar(Vector2.Transform(intersection.ElementSpace.xy(), Matrix3x2.CreateRotation((float)Math.PI)));
+            var d = uvpos.Y;
+            uvpos.X = uvpos.X / (float)Math.PI;
+            uvpos.Y = uvpos.Y * 4 - 1;
             intersection.SurfaceSpace = new Vector3(uvpos, 0);
 
+            var str = Matrix4x4.CreateWorld(intersection.ElementSpace, Vector3.UnitZ,
+                -Vector3.Normalize(intersection.ElementSpace));
+            intersection.WorldSurfaceTangentTransform = str * DisplayMatrix;
 
-
-            return uvpos.Y < 0.5 ? intersection : null;
+            persistentIspoint = intersection;
+            return d < 0.5 ? intersection : null;
         }
 
         public CircleElement(ElementPrototype prototype, NotuiContext context, NotuiElement parent = null) :
@@ -189,16 +209,44 @@ namespace Notui.Elements
         public float Cycles { get; set; } = 1;
         public float Phase { get; set; } = 0;
 
-        public override IntersectionPoint PureHitTest(Touch touch)
+        public override IntersectionPoint PureHitTest(Touch touch, bool prevpos, out IntersectionPoint persistentIspoint)
         {
-            var intersection = PreparePlanarShapeHitTest(touch);
+            var intersection = PreparePlanarShapeHitTest(touch, prevpos);
             var phit = intersection != null;
-            if (!phit) return null;
-            var polar = Coordinates.RectToPolar(intersection.ElementSpace.xy());
-            polar.X = (float)Math.PI + (polar.X - Phase * (float)Math.PI*2) * Math.Sign(Cycles);
+            if (!phit)
+            {
+                persistentIspoint = null;
+                return null;
+            }
+            //var polar = Coordinates.RectToPolar(intersection.ElementSpace.xy());
+            //polar.X = (float)Math.PI + (polar.X - Phase * (float)Math.PI*2) * Math.Sign(Cycles);
             var rad = Math.Max(HoleRadius, 1);
             var hrad = Math.Min(HoleRadius, 1);
-            var hit = polar.Y * 2 < rad && polar.Y * 2 >= hrad && (polar.X + Math.PI) % (Math.PI * 2) <= Math.Abs(Cycles * Math.PI * 2);
+
+            var uvpos = Coordinates.RectToPolar(
+                Vector2.Transform(
+                    intersection.ElementSpace.xy(),
+                    Matrix3x2.CreateRotation((-Phase + 0.5f) * 2.0f * (float)Math.PI)
+                    )
+                );
+
+            uvpos.X = Cycles > 0 ?
+                    (float) VMath.Map(uvpos.X / (float) Math.PI, -1, Cycles * 2 - 1, -1, 1, TMapMode.Float) :
+                    (float) VMath.Map(uvpos.X / (float) Math.PI, 1, 1 + Cycles * 2, -1, 1, TMapMode.Float);
+
+            uvpos.Y = HoleRadius > 1 ?
+                (float)VMath.Map(uvpos.Y * 2, hrad, rad, -1, 1, TMapMode.Float) :
+                (float)VMath.Map(uvpos.Y * 2, hrad, rad, 1, -1, TMapMode.Float);
+            intersection.SurfaceSpace = new Vector3(uvpos, 0);
+
+            var str = Matrix4x4.CreateWorld(intersection.ElementSpace, Vector3.UnitZ,
+                -Vector3.Normalize(intersection.ElementSpace));
+            intersection.WorldSurfaceTangentTransform = str * DisplayMatrix;
+
+            //var hit = polar.Y * 2 < rad && polar.Y * 2 >= hrad && (polar.X + Math.PI) % (Math.PI * 2) <= Math.Abs(Cycles * Math.PI * 2);
+            var hit = uvpos.X > -1 && uvpos.X < 1 && uvpos.Y > -1 && uvpos.Y < 1;
+
+            persistentIspoint = intersection;
             return hit ? intersection : null;
         }
 
@@ -266,17 +314,20 @@ namespace Notui.Elements
     {
         public List<Vector2> Vertices { get; private set; } = new List<Vector2>();
 
-        public override IntersectionPoint PureHitTest(Touch touch)
+        public override IntersectionPoint PureHitTest(Touch touch, bool prevpos, out IntersectionPoint persistentIspoint)
         {
             if (Vertices.Count < 3)
+            {
+                persistentIspoint = null;
                 return null;
+            }
 
-            var intersection = PreparePlanarShapeHitTest(touch);
-            var phit = intersection != null;
+            persistentIspoint = PreparePlanarShapeHitTest(touch, prevpos);
+            var phit = persistentIspoint != null;
             if (!phit) return null;
 
             var vold = Vertices[Vertices.Count - 1];
-            var vt = intersection.ElementSpace.xy();
+            var vt = persistentIspoint.ElementSpace.xy();
             var hit = false;
             foreach (var vnew in Vertices)
             {
@@ -298,7 +349,7 @@ namespace Notui.Elements
                 }
                 vold = vnew;
             }
-            return hit ? intersection : null;
+            return hit ? persistentIspoint : null;
         }
 
         public PolygonElement(ElementPrototype prototype, NotuiContext context, NotuiElement parent = null) :
