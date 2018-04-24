@@ -95,6 +95,7 @@ namespace Notui
         /// <param name="selectivetr"></param>
         public static void UpdateCommon(this IElementCommon element, IElementCommon prototype)
         {
+            var setvals = true;
             element.Id = prototype.Id;
 
             if (element is NotuiElement elinst)
@@ -102,6 +103,7 @@ namespace Notui
                 if (prototype is ElementPrototype prot)
                 {
                     elinst.Prototype = prot;
+                    setvals = prot.SetAttachedValues;
 
                     if (prot.SubContextOptions == null)
                         elinst.SubContext = null;
@@ -138,6 +140,7 @@ namespace Notui
                 if (prototype is ElementPrototype prot)
                 {
                     elprot.SubContextOptions = prot.SubContextOptions?.Copy();
+                    elprot.SetAttachedValues = prot.SetAttachedValues;
                 }
                 if (prototype is NotuiElement el)
                 {
@@ -155,15 +158,20 @@ namespace Notui
             element.TransformationFollowTime = prototype.TransformationFollowTime;
             element.Behaviors = prototype.Behaviors;
             element.OnlyHitIfParentIsHit = prototype.OnlyHitIfParentIsHit;
-            if (prototype.Value == null)
-                element.Value = null;
-            else
+
+            if(setvals)
             {
-                if (element.Value == null)
+                if (prototype.Value == null)
+                    element.Value = null;
+                else
                 {
-                    element.Value = new AttachedValues();
+                    if (element.Value == null)
+                    {
+                        element.Value = new AttachedValues();
+                    }
+
+                    element.Value.UpdateFrom(prototype.Value);
                 }
-                element.Value.UpdateFrom(prototype.Value);
             }
         }
 
@@ -183,11 +191,16 @@ namespace Notui
             currpos = crpos;
 
             // get planar coords for the previous touch position
-            var prevpoint = touch.Point - touch.Velocity;
-            Coordinates.GetPointWorldPosDir(prevpoint, context.ProjectionWithAspectRatioInverse, context.ViewInverse, out var popos, out var pdir);
+            touch.GetPreviousWorldPosition(context, out var popos, out var pdir);
             var phit = Intersections.PlaneRay(popos, pdir, plane, out var papos, out var prpos);
             prevpos = prpos;
             return crpos - prpos;
+        }
+
+        public static void GetPreviousWorldPosition(this TouchContainer touch, NotuiContext context, out Vector3 popos, out Vector3 pdir)
+        {
+            var prevpoint = touch.Point - touch.Velocity;
+            Coordinates.GetPointWorldPosDir(prevpoint, context.ProjectionWithAspectRatioInverse, context.ViewInverse, out popos, out pdir);
         }
 
         public static List<NotuiElement> Opaq(this NotuiElement element, string path, string separator = "/", bool useName = true)

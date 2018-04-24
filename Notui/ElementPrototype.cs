@@ -91,6 +91,11 @@ namespace Notui
         public ApplyTransformMode TransformApplication { get; set; } = ApplyTransformMode.All;
 
         /// <summary>
+        /// Set attached values when updating instances. Default is true
+        /// </summary>
+        public bool SetAttachedValues { get; set; } = true;
+
+        /// <summary>
         /// The element this element inherits its transformation from. Null if this element is directly in a context.
         /// </summary>
         public ElementPrototype Parent { get; set; }
