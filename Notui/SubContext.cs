@@ -75,6 +75,7 @@ namespace Notui
                     }
                 }
             }
+
             OnMainLoopEnd?.Invoke(this, EventArgs.Empty);
         }
 

@@ -41,7 +41,7 @@ namespace Notui.Elements
                 DisplayMatrix,
                 out var ispoint,
                 out var planarpoint);
-            return hit ? new IntersectionPoint(ispoint, planarpoint, this, touch) : null;
+            return hit ? new IntersectionPoint(ispoint, planarpoint, this, touch) {SurfaceSpace = planarpoint * 2} : null;
         }
 
         protected PlanarElement(ElementPrototype prototype, NotuiContext context, NotuiElement parent = null) :
@@ -282,7 +282,7 @@ namespace Notui.Elements
         public List<Vector2> Vertices { get; private set; } = new List<Vector2>();
 
         public PolygonElementPrototype(string id = null, ElementPrototype parent = null) :
-            base(typeof(SegmentElement), id, parent)
+            base(typeof(PolygonElement), id, parent)
         { }
 
         public PolygonElementPrototype(NotuiElement fromInstance, bool newId = true) : base(fromInstance, newId) { }
