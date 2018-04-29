@@ -40,6 +40,8 @@ namespace Notui
         /// </summary>
         public List<NotuiElement> HittingElements { get; } = new List<NotuiElement>();
 
+        public readonly NotuiContext Context;
+
         public bool Pressed { get; protected set; } = false;
 
         public bool Press(float minforce)
@@ -48,7 +50,7 @@ namespace Notui
             return Pressed;
         }
 
-        public Touch(int id) : base(id)
+        public Touch(int id, NotuiContext context) : base(id)
         {
             OnMainLoopEnd += (sender, args) =>
             {
@@ -56,6 +58,25 @@ namespace Notui
                 else FramesSincePressed = 0;
             };
             CustomAttachedObject = HittingElements;
+            Context = context;
+        }
+
+        public override bool Equals(object obj)
+        {
+            switch (obj)
+            {
+                case null:
+                    return false;
+                case Touch touch:
+                    return Id == touch.Id && Context == touch.Context;
+                default:
+                    return false;
+            }
+        }
+
+        public override int GetHashCode()
+        {
+            return Id ^ Context.GetHashCode();
         }
     }
 }

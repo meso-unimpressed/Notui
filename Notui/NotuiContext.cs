@@ -253,7 +253,7 @@ namespace Notui
                 }
                 else
                 {
-                    tt = new Touch(touch.id) { Force = touch.force };
+                    tt = new Touch(touch.id, this) { Force = touch.force };
                     Touches.TryAdd(tt.Id, tt);
                 }
                 tt.Update(touch.point, deltatime);
@@ -272,7 +272,7 @@ namespace Notui
                     }
                     else
                     {
-                        tt = new Touch(MouseTouchId) { Force = mbpressed ? MouseTouchForce : 0.0f };
+                        tt = new Touch(MouseTouchId, this) { Force = mbpressed ? MouseTouchForce : 0.0f };
                         tt.AttachMouse(AttachableMouse, MouseDelta);
                         Touches.TryAdd(tt.Id, tt);
                     }
