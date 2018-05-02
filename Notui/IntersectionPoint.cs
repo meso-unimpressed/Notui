@@ -30,12 +30,12 @@ namespace Notui
         /// <summary>
         /// The element in question
         /// </summary>
-        public NotuiElement Element { get; }
+        public readonly NotuiElement Element;
 
         /// <summary>
         /// The touch in question
         /// </summary>
-        public Touch Touch { get; }
+        public readonly Touch Touch;
 
         /// <summary>
         /// Absolute world space transformation
@@ -65,5 +65,20 @@ namespace Notui
         public IntersectionPoint(Vector3 wpos, Vector3 epos, NotuiElement element, Touch touch)
             : this(wpos, epos, epos, Matrix4x4.CreateTranslation(epos) * element.DisplayMatrix, element, touch)
         { }
+
+        public override bool Equals(object obj)
+        {
+            if (obj == null) return false;
+            if (obj is IntersectionPoint ispoint)
+            {
+                return Element == ispoint.Element && Touch == ispoint.Touch;
+            }
+            else return false;
+        }
+
+        public override int GetHashCode()
+        {
+            return Element.GetHashCode() ^ Touch.GetHashCode();
+        }
     }
 }
