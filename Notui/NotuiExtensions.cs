@@ -159,19 +159,14 @@ namespace Notui
             element.Behaviors = prototype.Behaviors;
             element.OnlyHitIfParentIsHit = prototype.OnlyHitIfParentIsHit;
 
-            if(setvals)
+            if(setvals && prototype.Value != null)
             {
-                if (prototype.Value == null)
-                    element.Value = null;
-                else
+                if (element.Value == null)
                 {
-                    if (element.Value == null)
-                    {
-                        element.Value = new AttachedValues();
-                    }
-
-                    element.Value.UpdateFrom(prototype.Value);
+                    element.Value = new AttachedValues();
                 }
+
+                element.Value.UpdateFrom(prototype.Value);
             }
         }
 

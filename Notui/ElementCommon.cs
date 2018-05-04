@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
+using md.stdl.Coding;
 using md.stdl.Interfaces;
 using md.stdl.Time;
 
@@ -66,14 +67,8 @@ namespace Notui
         public void UpdateFrom(AttachedValues other)
         {
             if(other == null) return;
-            Values = other.Values.ToArray();
-            Texts = other.Texts.ToArray();
-            var removable = (from auxkey in Auxiliary.Keys where !other.Auxiliary.ContainsKey(auxkey) select auxkey).ToArray();
-
-            foreach (var auxkey in removable)
-            {
-                Auxiliary.Remove(auxkey);
-            }
+            Values.Fill(other.Values);
+            Texts.Fill(other.Texts);
 
             foreach (var auxval in other.Auxiliary)
             {
