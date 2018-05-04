@@ -15,6 +15,7 @@ namespace Notui.Elements
     /// </summary>
     public abstract class PlanarElement : NotuiElement
     {
+        /// <inheritdoc cref="NotuiElement"/>
         protected override void MainloopBeforeBehaviors()
         {
             foreach (var touch in Touching.Keys)
@@ -44,6 +45,10 @@ namespace Notui.Elements
             return hit ? new IntersectionPoint(ispoint, planarpoint, this, touch) {SurfaceSpace = planarpoint * 2} : null;
         }
 
+        /// <summary></summary>
+        /// <param name="prototype"></param>
+        /// <param name="context"></param>
+        /// <param name="parent"></param>
         protected PlanarElement(ElementPrototype prototype, NotuiContext context, NotuiElement parent = null) :
             base(prototype, context, parent) { }
     }
@@ -54,10 +59,21 @@ namespace Notui.Elements
     /// </summary>
     public class InfinitePlaneElementPrototype : ElementPrototype
     {
+        /// <summary>
+        /// Regular constructor
+        /// </summary>
+        /// <param name="id">If null generate a new ID with System.GUID</param>
+        /// <param name="parent">Optional parent element if this prototype is a child</param>
         public InfinitePlaneElementPrototype(string id = null, ElementPrototype parent = null) :
             base(typeof(InfinitePlaneElement), id, parent)
         { }
 
+        /// <summary>
+        /// Construct based on an instance
+        /// </summary>
+        /// <param name="fromInstance">The element instance</param>
+        /// <param name="newId">Generate a new ID?</param>
+        /// <remarks>Static function ElementPrototype.CreateFromInstance(...) is recommended to be used instead of this</remarks>
         public InfinitePlaneElementPrototype(NotuiElement fromInstance, bool newId = true) : base(fromInstance, newId) { }
     }
     /// <inheritdoc />
@@ -66,12 +82,14 @@ namespace Notui.Elements
     /// </summary>
     public class InfinitePlaneElement : PlanarElement
     {
+        /// <inheritdoc cref="NotuiElement"/>
         public override IntersectionPoint PureHitTest(Touch touch, bool prevpos, out IntersectionPoint persistentIspoint)
         {
             persistentIspoint = PreparePlanarShapeHitTest(touch, prevpos);
             return persistentIspoint;
         }
 
+        /// <inheritdoc cref="NotuiElement"/>
         public InfinitePlaneElement(ElementPrototype prototype, NotuiContext context, NotuiElement parent = null) :
             base(prototype, context, parent)
         { }
@@ -83,9 +101,20 @@ namespace Notui.Elements
     /// </summary>
     public class RectangleElementPrototype : ElementPrototype
     {
+        /// <summary>
+        /// Regular constructor
+        /// </summary>
+        /// <param name="id">If null generate a new ID with System.GUID</param>
+        /// <param name="parent">Optional parent element if this prototype is a child</param>
         public RectangleElementPrototype(string id = null, ElementPrototype parent = null) :
             base(typeof(RectangleElement), id, parent) { }
 
+        /// <summary>
+        /// Construct based on an instance
+        /// </summary>
+        /// <param name="fromInstance">The element instance</param>
+        /// <param name="newId">Generate a new ID?</param>
+        /// <remarks>Static function ElementPrototype.CreateFromInstance(...) is recommended to be used instead of this</remarks>
         public RectangleElementPrototype(NotuiElement fromInstance, bool newId = true) : base(fromInstance, newId) { }
     }
     /// <inheritdoc />
@@ -94,6 +123,7 @@ namespace Notui.Elements
     /// </summary>
     public class RectangleElement : PlanarElement
     {
+        /// <inheritdoc cref="NotuiElement"/>
         public override IntersectionPoint PureHitTest(Touch touch, bool prevpos, out IntersectionPoint persistentIspoint)
         {
             var intersection = PreparePlanarShapeHitTest(touch, prevpos);
@@ -109,6 +139,7 @@ namespace Notui.Elements
             return hit ? intersection : null;
         }
 
+        /// <inheritdoc cref="NotuiElement"/>
         public RectangleElement(ElementPrototype prototype, NotuiContext context, NotuiElement parent = null) :
             base(prototype, context, parent) { }
     }
@@ -119,10 +150,21 @@ namespace Notui.Elements
     /// </summary>
     public class CircleElementPrototype : ElementPrototype
     {
+        /// <summary>
+        /// Regular constructor
+        /// </summary>
+        /// <param name="id">If null generate a new ID with System.GUID</param>
+        /// <param name="parent">Optional parent element if this prototype is a child</param>
         public CircleElementPrototype(string id = null, ElementPrototype parent = null) :
             base(typeof(CircleElement), id, parent)
         { }
 
+        /// <summary>
+        /// Construct based on an instance
+        /// </summary>
+        /// <param name="fromInstance">The element instance</param>
+        /// <param name="newId">Generate a new ID?</param>
+        /// <remarks>Static function ElementPrototype.CreateFromInstance(...) is recommended to be used instead of this</remarks>
         public CircleElementPrototype(NotuiElement fromInstance, bool newId = true) : base(fromInstance, newId) { }
     }
     /// <inheritdoc />
@@ -131,6 +173,7 @@ namespace Notui.Elements
     /// </summary>
     public class CircleElement : PlanarElement
     {
+        /// <inheritdoc cref="NotuiElement"/>
         public override IntersectionPoint PureHitTest(Touch touch, bool prevpos, out IntersectionPoint persistentIspoint)
         {
             var intersection = PreparePlanarShapeHitTest(touch, prevpos);
@@ -156,6 +199,7 @@ namespace Notui.Elements
             return d < 0.5 ? intersection : null;
         }
 
+        /// <inheritdoc cref="NotuiElement"/>
         public CircleElement(ElementPrototype prototype, NotuiContext context, NotuiElement parent = null) :
             base(prototype, context, parent) { }
     }
@@ -166,16 +210,39 @@ namespace Notui.Elements
     /// </summary>
     public class SegmentElementPrototype : ElementPrototype
     {
+        /// <summary>
+        /// The radius of the hole in the segment (for creating arcs)
+        /// </summary>
         public float HoleRadius { get; set; } = 0;
+
+        /// <summary>
+        /// The cycles around the circle perimeter
+        /// </summary>
         public float Cycles { get; set; } = 1;
+
+        /// <summary>
+        /// The phase of the segment / arc
+        /// </summary>
         public float Phase { get; set; } = 0;
 
+        /// <summary>
+        /// Regular constructor
+        /// </summary>
+        /// <param name="id">If null generate a new ID with System.GUID</param>
+        /// <param name="parent">Optional parent element if this prototype is a child</param>
         public SegmentElementPrototype(string id = null, ElementPrototype parent = null) :
             base(typeof(SegmentElement), id, parent)
         { }
 
+        /// <summary>
+        /// Construct based on an instance
+        /// </summary>
+        /// <param name="fromInstance">The element instance</param>
+        /// <param name="newId">Generate a new ID?</param>
+        /// <remarks>Static function ElementPrototype.CreateFromInstance(...) is recommended to be used instead of this</remarks>
         public SegmentElementPrototype(NotuiElement fromInstance, bool newId = true) : base(fromInstance, newId) { }
-
+        
+        /// <inheritdoc cref="ElementPrototype"/>
         public override void UpdateFrom(ElementPrototype other)
         {
             base.UpdateFrom(other);
@@ -187,6 +254,7 @@ namespace Notui.Elements
             }
         }
 
+        /// <inheritdoc cref="ElementPrototype"/>
         public override void UpdateFrom(NotuiElement other)
         {
             base.UpdateFrom(other);
@@ -205,10 +273,20 @@ namespace Notui.Elements
     /// </summary>
     public class SegmentElement : PlanarElement
     {
+        /// <summary>
+        /// The radius of the hole in the segment (for creating arcs)
+        /// </summary>
         public float HoleRadius { get; set; } = 0;
+        /// <summary>
+        /// The cycles around the circle perimeter
+        /// </summary>
         public float Cycles { get; set; } = 1;
+        /// <summary>
+        /// The phase of the segment / arc
+        /// </summary>
         public float Phase { get; set; } = 0;
 
+        /// <inheritdoc cref="NotuiElement"/>
         public override IntersectionPoint PureHitTest(Touch touch, bool prevpos, out IntersectionPoint persistentIspoint)
         {
             var intersection = PreparePlanarShapeHitTest(touch, prevpos);
@@ -250,6 +328,7 @@ namespace Notui.Elements
             return hit ? intersection : null;
         }
 
+        /// <inheritdoc cref="NotuiElement"/>
         public SegmentElement(ElementPrototype prototype, NotuiContext context, NotuiElement parent = null) :
             base(prototype, context, parent)
         {
@@ -261,6 +340,7 @@ namespace Notui.Elements
             }
         }
 
+        /// <inheritdoc cref="NotuiElement"/>
         public override void UpdateFrom(ElementPrototype other)
         {
             base.UpdateFrom(other);
@@ -279,14 +359,29 @@ namespace Notui.Elements
     /// </summary>
     public class PolygonElementPrototype : ElementPrototype
     {
+        /// <summary>
+        /// List of the polygon vertices in 2D
+        /// </summary>
         public List<Vector2> Vertices { get; private set; } = new List<Vector2>();
 
+        /// <summary>
+        /// Regular constructor
+        /// </summary>
+        /// <param name="id">If null generate a new ID with System.GUID</param>
+        /// <param name="parent">Optional parent element if this prototype is a child</param>
         public PolygonElementPrototype(string id = null, ElementPrototype parent = null) :
             base(typeof(PolygonElement), id, parent)
         { }
 
+        /// <summary>
+        /// Construct based on an instance
+        /// </summary>
+        /// <param name="fromInstance">The element instance</param>
+        /// <param name="newId">Generate a new ID?</param>
+        /// <remarks>Static function ElementPrototype.CreateFromInstance(...) is recommended to be used instead of this</remarks>
         public PolygonElementPrototype(NotuiElement fromInstance, bool newId = true) : base(fromInstance, newId) { }
 
+        /// <inheritdoc cref="ElementPrototype"/>
         public override void UpdateFrom(ElementPrototype other)
         {
             base.UpdateFrom(other);
@@ -296,6 +391,7 @@ namespace Notui.Elements
             }
         }
 
+        /// <inheritdoc cref="ElementPrototype"/>
         public override void UpdateFrom(NotuiElement other)
         {
             base.UpdateFrom(other);
@@ -312,8 +408,12 @@ namespace Notui.Elements
     /// </summary>
     public class PolygonElement : PlanarElement
     {
+        /// <summary>
+        /// List of the polygon vertices in 2D
+        /// </summary>
         public List<Vector2> Vertices { get; private set; } = new List<Vector2>();
 
+        /// <inheritdoc cref="NotuiElement"/>
         public override IntersectionPoint PureHitTest(Touch touch, bool prevpos, out IntersectionPoint persistentIspoint)
         {
             if (Vertices.Count < 3)
@@ -352,6 +452,7 @@ namespace Notui.Elements
             return hit ? persistentIspoint : null;
         }
 
+        /// <inheritdoc cref="NotuiElement"/>
         public PolygonElement(ElementPrototype prototype, NotuiContext context, NotuiElement parent = null) :
             base(prototype, context, parent)
         {
@@ -361,6 +462,7 @@ namespace Notui.Elements
             }
         }
 
+        /// <inheritdoc cref="NotuiElement"/>
         public override void UpdateFrom(ElementPrototype other)
         {
             base.UpdateFrom(other);

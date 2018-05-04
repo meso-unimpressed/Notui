@@ -10,15 +10,34 @@ using md.stdl.Mathematics;
 
 namespace Notui.Elements
 {
+    /// <summary>
+    /// Prototype for 3D box elements
+    /// </summary>
     public class BoxElementPrototype : ElementPrototype
     {
+        /// <summary>
+        /// Size of the box on each axis
+        /// </summary>
         public Vector3 Size { get; set; } = Vector3.One;
+
+        /// <summary>
+        /// Regular constructor
+        /// </summary>
+        /// <param name="id">If null generate a new ID with System.GUID</param>
+        /// <param name="parent">Optional parent element if this prototype is a child</param>
         public BoxElementPrototype(string id = null, ElementPrototype parent = null) :
             base(typeof(BoxElement), id, parent)
         { }
 
+        /// <summary>
+        /// Construct based on an instance
+        /// </summary>
+        /// <param name="fromInstance">The element instance</param>
+        /// <param name="newId">Generate a new ID?</param>
+        /// <remarks>Static function ElementPrototype.CreateFromInstance(...) is recommended to be used instead of this</remarks>
         public BoxElementPrototype(NotuiElement fromInstance, bool newId = true) : base(fromInstance, newId) { }
 
+        /// <inheritdoc cref="ElementPrototype"/>
         public override void UpdateFrom(ElementPrototype other)
         {
             base.UpdateFrom(other);
@@ -28,6 +47,7 @@ namespace Notui.Elements
             }
         }
 
+        /// <inheritdoc cref="ElementPrototype"/>
         public override void UpdateFrom(NotuiElement other)
         {
             base.UpdateFrom(other);
@@ -38,8 +58,14 @@ namespace Notui.Elements
         }
     }
 
+    /// <summary>
+    /// 3D box element
+    /// </summary>
     public class BoxElement : NotuiElement
     {
+        /// <summary>
+        /// Size of the box on each axis
+        /// </summary>
         public Vector3 Size { get; set; } = Vector3.One;
         private readonly Vector3[] _planeCenters =
         {
@@ -59,6 +85,8 @@ namespace Notui.Elements
             new Vector3(0, 0, -1),
             new Vector3(-1, 0, 0)
         };
+
+        /// <inheritdoc cref="NotuiElement"/>
         public override IntersectionPoint PureHitTest(Touch touch, bool prevpos, out IntersectionPoint persistentIspoint)
         {
             touch.GetPreviousWorldPosition(Context, out var popos, out var pdir);
@@ -99,6 +127,7 @@ namespace Notui.Elements
             return ispoint;
         }
 
+        /// <inheritdoc cref="NotuiElement"/>
         public BoxElement(ElementPrototype prototype, NotuiContext context, NotuiElement parent = null) :
             base(prototype, context, parent)
         {
@@ -108,6 +137,7 @@ namespace Notui.Elements
             }
         }
 
+        /// <inheritdoc cref="NotuiElement"/>
         public override void UpdateFrom(ElementPrototype other)
         {
             base.UpdateFrom(other);

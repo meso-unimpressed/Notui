@@ -15,12 +15,18 @@ namespace Notui.Behaviors
     /// </summary>
     public class MoveToTopOnTouchBehavior : InteractionBehavior
     {
+        /// <summary>
+        /// Stateful data for MoveToTopOnTouchBehavior behavior
+        /// </summary>
         public class BehaviorState : AuxiliaryObject
         {
             private readonly NotuiElement _element;
+            /// <summary>
+            /// Is assigned element have been interacted with
+            /// </summary>
             public bool Interacted { get; set; }
 
-            protected void RecursiveInteracted(NotuiElement element)
+            private void RecursiveInteracted(NotuiElement element)
             {
                 element.OnTouchBegin += (sender, args) => Interacted = true;
                 foreach (var child in element.Children.Values)
@@ -29,16 +35,23 @@ namespace Notui.Behaviors
                 }
             }
 
+            /// <summary>
+            /// Default constructor
+            /// </summary>
+            /// <param name="element">Assign an element to this state</param>
             public BehaviorState(NotuiElement element)
             {
                 _element = element;
                 RecursiveInteracted(element);
             }
+
+            /// <inheritdoc cref="AuxiliaryObject"/>
             public override AuxiliaryObject Copy()
             {
                 return new BehaviorState(_element);
             }
 
+            /// <inheritdoc cref="AuxiliaryObject"/>
             public override void UpdateFrom(AuxiliaryObject other) { }
         }
 
@@ -54,6 +67,7 @@ namespace Notui.Behaviors
         [BehaviorParameter]
         public float Top { get; set; } = 0.0f;
 
+        /// <inheritdoc cref="InteractionBehavior"/>
         public override void Behave(NotuiElement element)
         {
             var currstate = IsStateAvailable(element) ? GetState<BehaviorState>(element) : new BehaviorState(element);

@@ -14,11 +14,19 @@ using SharpDX.RawInput;
 
 namespace Notui
 {
+    /// <inheritdoc />
+    /// <summary>
+    /// Event args involving touches
+    /// </summary>
     public class TouchInteractionEventArgs : EventArgs
     {
         public Touch Touch;
         public IntersectionPoint IntersectionPoint;
     }
+    /// <inheritdoc />
+    /// <summary>
+    /// Event args involving mice
+    /// </summary>
     public class MouseInteractionEventArgs : TouchInteractionEventArgs
     {
         public MouseButtons Buttons;
@@ -26,6 +34,10 @@ namespace Notui
         public bool Touching;
     }
 
+    /// <inheritdoc />
+    /// <summary>
+    /// Event args for changed children
+    /// </summary>
     public class ChildrenUpdatedEventArgs : EventArgs
     {
         public IEnumerable<IElementCommon> Elements;
@@ -40,31 +52,64 @@ namespace Notui
         private Matrix4x4 _displayMatrix;
         private Matrix4x4 _invDisplayMatrix;
         private bool _onFadedInInvoked;
-        public StopwatchInteractive FadeOutDelayTimer = new StopwatchInteractive();
-        public StopwatchInteractive FadeInDelayTimer = new StopwatchInteractive();
         private SubContext _subContext;
 
+        /// <summary>
+        /// Timer for the FadeOut delay
+        /// </summary>
+        public StopwatchInteractive FadeOutDelayTimer = new StopwatchInteractive();
+        /// <summary>
+        /// Timer for the FadeIn delay
+        /// </summary>
+        public StopwatchInteractive FadeInDelayTimer = new StopwatchInteractive();
+        
+        /// <inheritdoc />
         public string Name { get; set; }
+        /// <inheritdoc />
         public string Id { get; set; } = Guid.NewGuid().ToString();
+        /// <inheritdoc />
         public float FadeOutTime { get; set; }
+        /// <inheritdoc />
         public float FadeInTime { get; set; }
 
+        /// <inheritdoc />
         public float FadeOutDelay { get; set; }
+
+        /// <summary>
+        /// Fade out delay taking into account children delays
+        /// </summary>
         public float AbsoluteFadeOutDelay => FadeOutDelay + (Children.Count > 0 ? Children.Values.Max(cel => cel.FadeOutDelay) : 0);
 
+        /// <inheritdoc />
         public float FadeInDelay { get; set; }
+
+        /// <summary>
+        /// Fade in delay taking into account parent delay
+        /// </summary>
         public float AbsoluteFadeInDelay => FadeInDelay + (Parent?.FadeInDelay ?? 0);
 
+        /// <inheritdoc />
         public float TransformationFollowTime { get; set; }
 
+        /// <inheritdoc />
         public bool Active { get; set; }
+        /// <inheritdoc />
         public bool Transparent { get; set; }
+        /// <inheritdoc />
         public List<InteractionBehavior> Behaviors { get; set; } = new List<InteractionBehavior>();
+        /// <inheritdoc />
         public AttachedValues Value { get; set; }
+        /// <inheritdoc />
         public AuxiliaryObject EnvironmentObject { get; set; }
+        /// <inheritdoc />
         public bool OnlyHitIfParentIsHit { get; set; }
 
+        /// <inheritdoc />
         public ElementTransformation DisplayTransformation { get; set; } = new ElementTransformation();
+
+        /// <summary>
+        /// An immediate target transformation which can be smoothly transitioned towards
+        /// </summary>
         public ElementTransformation TargetTransformation { get; set; } = new ElementTransformation();
 
         /// <summary>
@@ -232,7 +277,10 @@ namespace Notui
                 child.FlattenElements(flatElements);
             }
         }
-
+        /// <summary>
+        /// Immediately follow the transformation of another element (instance or prototype)
+        /// </summary>
+        /// <param name="element"></param>
         public void FollowTransformation(IElementCommon element)
         {
             DisplayTransformation.UpdateFrom(element.DisplayTransformation);
@@ -604,6 +652,7 @@ namespace Notui
             OnMainLoopEnd?.Invoke(this, EventArgs.Empty);
         }
 
+        /// <inheritdoc />
         public virtual NotuiElement Copy()
         {
             var newprot = ElementPrototype.CreateFromInstance(this);
@@ -624,6 +673,7 @@ namespace Notui
                 child.InvalidateMatrices();
         }
 
+        /// <inheritdoc />
         public virtual void UpdateFrom(ElementPrototype other)
         {
             if(Dying) return;
@@ -675,6 +725,10 @@ namespace Notui
             }
         }
 
+        /// <summary>
+        /// Override to modify the behavior how interaction should begin
+        /// </summary>
+        /// <param name="touch"></param>
         protected void FireInteractionTouchBegin(Touch touch)
         {
             if(touch.FramesSincePressed >= Context.ConsiderNewBefore) return;
@@ -686,6 +740,11 @@ namespace Notui
             OnTouchBegin?.Invoke(this, eventargs);
             Touching.TryAdd(touch, Hovering[touch]);
         }
+
+        /// <summary>
+        /// Override to modify the behavior how interaction should end
+        /// </summary>
+        /// <param name="touch"></param>
         protected void FireInteractionEnd(Touch touch)
         {
             if (Touching.Count == 0) OnInteractionEnd?.Invoke(this, new TouchInteractionEventArgs
@@ -693,6 +752,11 @@ namespace Notui
                 Touch = touch
             });
         }
+
+        /// <summary>
+        /// Override to modify the behavior how a touch should be released
+        /// </summary>
+        /// <param name="touch"></param>
         protected void FireTouchEnd(Touch touch)
         {
             if (!Touching.ContainsKey(touch)) return;
@@ -704,6 +768,7 @@ namespace Notui
             FireInteractionEnd(touch);
         }
 
+        /// <inheritdoc />
         public object Clone() => Copy();
 
         /// <summary>
@@ -729,6 +794,9 @@ namespace Notui
             Dying = true;
         }
 
+        /// <summary>
+        /// Override to modify how element should be deleted
+        /// </summary>
         protected void Delete()
         {
             if (FadeOutTime > 0)

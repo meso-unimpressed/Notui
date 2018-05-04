@@ -10,15 +10,23 @@ using static System.Math;
 
 namespace Notui.Behaviors
 {
+    /// <summary>
+    /// A behavior which makes a XY slider for the attached values out of the assigned elements
+    /// </summary>
     public class ValueSlider2D : InteractionBehavior
     {
+        /// <summary>
+        /// A State for ValueSlider2D used only for determining when ValueSlider2D was first attached
+        /// </summary>
         public class BehaviorState : AuxiliaryObject
         {
+            /// <inheritdoc cref="AuxiliaryObject"/>
             public override AuxiliaryObject Copy()
             {
                 return new BehaviorState();
             }
 
+            /// <inheritdoc cref="AuxiliaryObject"/>
             public override void UpdateFrom(AuxiliaryObject other) { }
         }
 
@@ -78,6 +86,7 @@ namespace Notui.Behaviors
         [BehaviorParameter]
         public MouseButtons[] MouseMask { get; set; } = new MouseButtons[0];
 
+        /// <inheritdoc cref="InteractionBehavior"/>
         public override void Behave(NotuiElement element)
         {
             if (element.Value == null)

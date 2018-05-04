@@ -9,15 +9,32 @@ using md.stdl.Mathematics;
 
 namespace Notui.Elements
 {
+    /// <summary>
+    /// Prototype for 3D sphere elements
+    /// </summary>
     public class SphereElementPrototype : ElementPrototype
     {
+        /// <summary>
+        /// Regular constructor
+        /// </summary>
+        /// <param name="id">If null generate a new ID with System.GUID</param>
+        /// <param name="parent">Optional parent element if this prototype is a child</param>
         public SphereElementPrototype(string id = null, ElementPrototype parent = null) :
             base(typeof(SphereElement), id, parent)
         { }
 
+        /// <summary>
+        /// Construct based on an instance
+        /// </summary>
+        /// <param name="fromInstance">The element instance</param>
+        /// <param name="newId">Generate a new ID?</param>
+        /// <remarks>Static function ElementPrototype.CreateFromInstance(...) is recommended to be used instead of this</remarks>
         public SphereElementPrototype(NotuiElement fromInstance, bool newId = true) : base(fromInstance, newId) { }
     }
 
+    /// <summary>
+    /// 3D sphere element
+    /// </summary>
     public class SphereElement : NotuiElement
     {
         private bool SolveQuadratic(float a, float b, float c, out float x0, out float x1)
@@ -43,6 +60,8 @@ namespace Notui.Elements
             }
             return true;
         }
+
+        /// <inheritdoc cref="NotuiElement"/>
         public override IntersectionPoint PureHitTest(Touch touch, bool prevpos, out IntersectionPoint persistentIspoint)
         {
             persistentIspoint = null;
@@ -84,6 +103,7 @@ namespace Notui.Elements
             return ispoint;
         }
 
+        /// <inheritdoc cref="NotuiElement"/>
         public SphereElement(ElementPrototype prototype, NotuiContext context, NotuiElement parent = null) :
             base(prototype, context, parent)
         { }

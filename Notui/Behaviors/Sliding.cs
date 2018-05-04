@@ -21,17 +21,42 @@ namespace Notui.Behaviors
     public class SlidingBehavior : PlanarBehavior
     {
 
+        /// <summary>
+        /// Stateful data for MoveToTopOnTouchBehavior behavior
+        /// </summary>
         public class BehaviorState : AuxiliaryObject, IMainlooping
         {
+            /// <summary>
+            /// The delta position between frames
+            /// </summary>
             public Vector2 DeltaPos = Vector2.Zero;
-            public float DeltaAngle = 0;
-            public float DeltaSize = 0;
 
+            /// <summary>
+            /// The delta angle between frames
+            /// </summary>
+            public float DeltaAngle = 0;
+
+            /// <summary>
+            /// The delta size between frames
+            /// </summary>
+            public float DeltaSize = 0;
+            
+            /// <summary>
+            /// The total angle this Sliding behavior inflicted onto the assigned element
+            /// </summary>
             public float TotalAngle = 0;
+
+            /// <summary>
+            /// Is it currently flicking
+            /// </summary>
             public bool Flicking = false;
 
+            /// <summary>
+            /// Delayed deltas for more natural determination of flicking inertia
+            /// </summary>
             public Delay<Vector4> DelayedDeltas = new Delay<Vector4>(TimeSpan.FromSeconds(1.0));
 
+            /// <inheritdoc cref="AuxiliaryObject"/>
             public override AuxiliaryObject Copy()
             {
                 return new BehaviorState
@@ -43,6 +68,7 @@ namespace Notui.Behaviors
                 };
             }
 
+            /// <inheritdoc cref="AuxiliaryObject"/>
             public override void UpdateFrom(AuxiliaryObject other)
             {
                 if (!(other is BehaviorState bs)) return;
@@ -52,6 +78,7 @@ namespace Notui.Behaviors
                 TotalAngle = bs.TotalAngle;
             }
 
+            /// <inheritdoc cref="IMainlooping"/>
             public void Mainloop(float deltatime)
             {
                 OnMainLoopBegin?.Invoke(this, EventArgs.Empty);
@@ -59,7 +86,9 @@ namespace Notui.Behaviors
                 OnMainLoopEnd?.Invoke(this, EventArgs.Empty);
             }
 
+            /// <inheritdoc cref="IMainlooping"/>
             public event EventHandler OnMainLoopBegin;
+            /// <inheritdoc cref="IMainlooping"/>
             public event EventHandler OnMainLoopEnd;
         }
 
@@ -249,6 +278,7 @@ namespace Notui.Behaviors
             return new Vector4(curravg - prevavg, currpolar.X - prevpolar.X, currpolar.Y - prevpolar.Y);
         }
 
+        /// <inheritdoc cref="InteractionBehavior"/>
         public override void Behave(NotuiElement element)
         {
             var usedplane = GetUsedPlane(element);

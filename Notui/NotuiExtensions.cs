@@ -8,6 +8,9 @@ using md.stdl.Mathematics;
 
 namespace Notui
 {
+    /// <summary>
+    /// Extension methods for Notui classes
+    /// </summary>
     public static class NotuiExtensions
     {
         /// <summary>
@@ -92,7 +95,6 @@ namespace Notui
         /// </summary>
         /// <param name="element">Receiving element, Can be a prototype or an instance</param>
         /// <param name="prototype">Reference element, Can be a prototype or an instance</param>
-        /// <param name="selectivetr"></param>
         public static void UpdateCommon(this IElementCommon element, IElementCommon prototype)
         {
             var setvals = true;
@@ -192,12 +194,27 @@ namespace Notui
             return crpos - prpos;
         }
 
+        /// <summary>
+        /// Get the previous world position of a touch
+        /// </summary>
+        /// <param name="touch">Touch in question</param>
+        /// <param name="context">Context of the touch</param>
+        /// <param name="popos">Previous world position</param>
+        /// <param name="pdir">Previous ray direction</param>
         public static void GetPreviousWorldPosition(this TouchContainer touch, NotuiContext context, out Vector3 popos, out Vector3 pdir)
         {
             var prevpoint = touch.Point - touch.Velocity;
             Coordinates.GetPointWorldPosDir(prevpoint, context.ProjectionWithAspectRatioInverse, context.ViewInverse, out popos, out pdir);
         }
 
+        /// <summary>
+        /// Opaq query on element instances
+        /// </summary>
+        /// <param name="element">Root element</param>
+        /// <param name="path"></param>
+        /// <param name="separator"></param>
+        /// <param name="useName">Use children name instead of ID</param>
+        /// <returns>List of elements fitting the Opaq conditions</returns>
         public static List<NotuiElement> Opaq(this NotuiElement element, string path, string separator = "/", bool useName = true)
         {
             IEnumerable<NotuiElement> GetChildren(NotuiElement el, string k)
@@ -214,6 +231,14 @@ namespace Notui
             );
         }
 
+        /// <summary>
+        /// Opaq query on element prototypes
+        /// </summary>
+        /// <param name="element">Root element</param>
+        /// <param name="path"></param>
+        /// <param name="separator"></param>
+        /// <param name="useName">Use children name instead of ID</param>
+        /// <returns>List of elements fitting the Opaq conditions</returns>
         public static List<ElementPrototype> Opaq(this ElementPrototype element, string path, string separator = "/", bool useName = true)
         {
             IEnumerable<ElementPrototype> GetChildren(ElementPrototype el, string k)

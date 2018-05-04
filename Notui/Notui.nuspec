@@ -15,4 +15,7 @@
     <copyright>Copyright © 2017 by David Mórász</copyright>
     <tags>ui gui touch </tags>
   </metadata>
+  <files>
+    <file src="bin\Release\Notui.xml" target="lib\Net47" />
+  </files>
 </package>

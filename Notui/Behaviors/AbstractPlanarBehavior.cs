@@ -17,12 +17,22 @@ namespace Notui.Behaviors
     /// </summary>
     public abstract class PlanarBehavior : InteractionBehavior
     {
-        protected enum InteractingTouchSource
+        /// <summary>
+        /// Select the source list of touches for a behavior
+        /// </summary>
+        public enum InteractingTouchSource
         {
+            /// <summary></summary>
             Touching,
+            /// <summary></summary>
             Hitting,
+            /// <summary></summary>
             Mice
         }
+
+        /// <summary>
+        /// Select a plane of interest for a behavior
+        /// </summary>
         public enum SelectedPlane
         {
             /// <summary>
@@ -64,6 +74,9 @@ namespace Notui.Behaviors
         /// </summary>
         protected SelectedPlane ActualPlaneSelection;
 
+        /// <summary>
+        /// Get touches from the selected source list
+        /// </summary>
         protected IEnumerable<Touch> GetTouchesFromSource(NotuiElement element,
             InteractingTouchSource touchsrc = InteractingTouchSource.Touching)
         {
@@ -80,6 +93,12 @@ namespace Notui.Behaviors
             }
         }
 
+        /// <summary>
+        /// Recursive function which adds touches interacting with the children to this behavior
+        /// </summary>
+        /// <param name="element"></param>
+        /// <param name="touches"></param>
+        /// <param name="touchsrc"></param>
         protected void AddChildrenTouches(NotuiElement element, List<Touch> touches, InteractingTouchSource touchsrc = InteractingTouchSource.Touching)
         {
             foreach (var child in element.Children.Values)
@@ -89,6 +108,11 @@ namespace Notui.Behaviors
             }
         }
 
+        /// <summary>
+        /// Determine the actual plane matrix from the selected plane of this behavior
+        /// </summary>
+        /// <param name="element"></param>
+        /// <returns></returns>
         protected Matrix4x4 GetUsedPlane(NotuiElement element)
         {
             ActualPlaneSelection = UseSelectedPlane == SelectedPlane.ParentPlane ?
@@ -117,6 +141,12 @@ namespace Notui.Behaviors
             return usedplane;
         }
 
+        /// <summary>
+        /// Get all the touches which can act on this behavior
+        /// </summary>
+        /// <param name="element"></param>
+        /// <param name="touchsrc"></param>
+        /// <returns></returns>
         protected List<Touch> GetBehavingTouches(NotuiElement element, InteractingTouchSource touchsrc = InteractingTouchSource.Touching)
         {
             List<Touch> touches;

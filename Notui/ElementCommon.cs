@@ -10,20 +10,19 @@ using md.stdl.Time;
 
 namespace Notui
 {
-    /// <inheritdoc cref="IUpdateable{T}" />
-    /// <inheritdoc cref="ICloneable{T}" />
     /// <summary>
     /// Base class for auxiliary attached element object
     /// </summary>
     public abstract class AuxiliaryObject : ICloneable<AuxiliaryObject>, IUpdateable<AuxiliaryObject>
     {
+        /// <inheritdoc cref="ICloneable{T}"/>
         public abstract AuxiliaryObject Copy();
+        /// <inheritdoc cref="IUpdateable{T}"/>
         public abstract void UpdateFrom(AuxiliaryObject other);
+        /// <inheritdoc cref="ICloneable"/>
         public object Clone() => Copy();
     }
-
-    /// <inheritdoc cref="IUpdateable{T}" />
-    /// <inheritdoc cref="ICloneable{T}" />
+    
     /// <summary>
     /// A general purpose parameter holder for any IGuiElement
     /// </summary>
@@ -44,6 +43,7 @@ namespace Notui
         /// </summary>
         public Dictionary<string, AuxiliaryObject> Auxiliary = new Dictionary<string, AuxiliaryObject>();
 
+        /// <inheritdoc cref="ICloneable{T}"/>
         public AttachedValues Copy()
         {
             var res = new AttachedValues
@@ -59,11 +59,13 @@ namespace Notui
             return res;
         }
 
+        /// <inheritdoc cref="ICloneable"/>
         public object Clone()
         {
             return Copy();
         }
 
+        /// <inheritdoc cref="IUpdateable{T}"/>
         public void UpdateFrom(AttachedValues other)
         {
             if(other == null) return;

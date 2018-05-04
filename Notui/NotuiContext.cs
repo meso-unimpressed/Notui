@@ -13,7 +13,6 @@ using Matrix4x4 = System.Numerics.Matrix4x4;
 
 namespace Notui
 {
-    /// <inheritdoc cref="IMainlooping"/>
     /// <summary>
     /// Notui Context to manage GuiElements and Touches
     /// </summary>
@@ -129,7 +128,10 @@ namespace Notui
         private Vector2 _mouseTouchPos;
         private bool _rebuild = false;
 
+        /// <inheritdoc />
         public event EventHandler OnMainLoopBegin;
+
+        /// <inheritdoc />
         public event EventHandler OnMainLoopEnd;
 
         /// <summary>
@@ -175,13 +177,19 @@ namespace Notui
             _mouseUnsubscriber = null;
         }
 
+        /// <summary>
+        /// Request the rebuilding of flat elements externally. Be careful ;)
+        /// </summary>
+        /// <param name="deleted">Elements have been deleted</param>
+        /// <param name="updated">Elements have been updated</param>
         public void RequestRebuild(bool deleted, bool updated)
         {
             _rebuild = true;
             if (deleted) _elementsDeleted = true;
             if (updated) _elementsUpdated = true;
         }
-        
+
+        /// <inheritdoc />
         public void Mainloop(float deltatime)
         {
             OnMainLoopBegin?.Invoke(this, EventArgs.Empty);

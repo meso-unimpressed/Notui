@@ -39,6 +39,9 @@ namespace Notui
         Scale = 0x4
     }
 
+    /// <summary>
+    /// Transformation data for elements
+    /// </summary>
     public class ElementTransformation : ICloneable<ElementTransformation>, IUpdateable<ElementTransformation>
     {
         /// <summary>
@@ -83,6 +86,7 @@ namespace Notui
             }
         }
 
+        /// <summary></summary>
         public ElementTransformation()
         {
             Position = Vector3.Zero;
@@ -93,6 +97,7 @@ namespace Notui
             Cached = true;
         }
         
+        /// <inheritdoc cref="IUpdateable{T}"/>
         public void UpdateFrom(ElementTransformation other)
         {
             Position = other.Position;
@@ -100,6 +105,11 @@ namespace Notui
             Scale = other.Scale;
         }
 
+        /// <summary>
+        /// Selectively update transform components
+        /// </summary>
+        /// <param name="other"></param>
+        /// <param name="selective"></param>
         public void UpdateFrom(ElementTransformation other, ApplyTransformMode selective)
         {
             if (((byte)selective & 0x1) != 0x0) Position = other.Position;
@@ -113,6 +123,7 @@ namespace Notui
         /// <param name="reference">The transformation to follow</param>
         /// <param name="time">Amount of seconds it takes to reach the reference transformation</param>
         /// <param name="deltaT">Delta time of a hypothetical frame in seconds</param>
+        /// <param name="selective">Select only specific components to update</param>
         public void FollowWithDamper(ElementTransformation reference, float time, float deltaT, ApplyTransformMode selective)
         {
             if (((byte)selective & 0x1) != 0x0) Position = Filters.Damper(Position, reference.Position, time, deltaT);
@@ -234,11 +245,13 @@ namespace Notui
         private Vector3 _scale;
         private Quaternion _rotation;
 
+        /// <inheritdoc cref="ICloneable"/>
         public object Clone()
         {
             return Copy();
         }
 
+        /// <inheritdoc cref="ICloneable{T}"/>
         public ElementTransformation Copy()
         {
             var res = new ElementTransformation();

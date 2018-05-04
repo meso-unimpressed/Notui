@@ -8,6 +8,9 @@ using VVVV.Utils.IO;
 
 namespace Notui
 {
+    /// <summary>
+    /// Notui specific touches
+    /// </summary>
     public class Touch : TouchContainer
     {
         /// <summary>
@@ -40,16 +43,28 @@ namespace Notui
         /// </summary>
         public List<NotuiElement> HittingElements { get; } = new List<NotuiElement>();
 
+        /// <summary>
+        /// The context this touch is created in
+        /// </summary>
         public readonly NotuiContext Context;
 
+        /// <summary>
+        /// The touch is pressed (aka its force over the context minimum)
+        /// </summary>
         public bool Pressed { get; protected set; } = false;
 
+        /// <summary>
+        /// Check for pressing criteria (only for contexts)
+        /// </summary>
+        /// <param name="minforce"></param>
+        /// <returns></returns>
         public bool Press(float minforce)
         {
             Pressed = Force > minforce;
             return Pressed;
         }
 
+        /// <inheritdoc />
         public Touch(int id, NotuiContext context) : base(id)
         {
             OnMainLoopEnd += (sender, args) =>
@@ -61,6 +76,7 @@ namespace Notui
             Context = context;
         }
 
+        /// <inheritdoc />
         public override bool Equals(object obj)
         {
             switch (obj)
@@ -74,6 +90,7 @@ namespace Notui
             }
         }
 
+        /// <inheritdoc />
         public override int GetHashCode()
         {
             return Id ^ Context.GetHashCode();

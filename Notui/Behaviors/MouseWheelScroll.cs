@@ -16,11 +16,17 @@ namespace Notui.Behaviors
     /// </summary>
     public class MouseWheelScroll : PlanarBehavior
     {
-
+        /// <summary>
+        /// Stateful data for MouseWheelScroll behavior
+        /// </summary>
         public class BehaviorState : AuxiliaryObject
         {
+            /// <summary>
+            /// The delta position between frames
+            /// </summary>
             public Vector2 DeltaPos = Vector2.Zero;
 
+            /// <inheritdoc cref="AuxiliaryObject"/>
             public override AuxiliaryObject Copy()
             {
                 return new BehaviorState
@@ -29,6 +35,7 @@ namespace Notui.Behaviors
                 };
             }
 
+            /// <inheritdoc cref="AuxiliaryObject"/>
             public override void UpdateFrom(AuxiliaryObject other)
             {
                 if (!(other is BehaviorState bs)) return;
@@ -94,6 +101,7 @@ namespace Notui.Behaviors
             }
         }
 
+        /// <inheritdoc cref="InteractionBehavior"/>
         public override void Behave(NotuiElement element)
         {
             var usedplane = GetUsedPlane(element);

@@ -11,18 +11,34 @@ using VVVV.Utils.IO;
 
 namespace Notui
 {
+    /// <summary>
+    /// Options class for prototyping a sub-context
+    /// </summary>
     public class SubContextOptions : ICloneable<SubContextOptions>
     {
+        /// <summary>
+        /// Select the space where the XY coordinates should be derived from
+        /// </summary>
         public enum IntersectionSpaceSelection
         {
+            /// <summary></summary>
             FromSurfaceSpace,
+            /// <summary></summary>
             FromElementSpace
         }
+
+        /// <summary>
+        /// Channel touches which are only hitting too instead of only interacting touches
+        /// </summary>
         public bool IncludeHitting { get; set; } = true;
 
+        /// <summary>
+        /// Select the space where the XY coordinates should be derived from
+        /// </summary>
         public IntersectionSpaceSelection TouchSpaceSource { get; set; } =
             IntersectionSpaceSelection.FromSurfaceSpace;
-
+        
+        /// <inheritdoc />
         public SubContextOptions Copy()
         {
             return new SubContextOptions
@@ -32,19 +48,44 @@ namespace Notui
             };
         }
 
+        /// <inheritdoc />
         public object Clone()
         {
             return Copy();
         }
     }
+
+    /// <summary>
+    /// Subcontexts are good for non Euclidean spaces determined by a host element's surface, or different viewports
+    /// </summary>
     public class SubContext : IMainlooping, ICloneable<SubContext>, IUpdateable<SubContextOptions>, IDisposable
     {
+        /// <summary>
+        /// The options this subcontext is created with
+        /// </summary>
         public SubContextOptions Options { get; private set; }
+
+        /// <summary>
+        /// The hosting element
+        /// </summary>
         public NotuiElement AttachedElement { get; private set; }
+
+        /// <summary>
+        /// The context of the host element
+        /// </summary>
         public NotuiContext ParentContext => AttachedElement.Context;
+
+        /// <summary>
+        /// The actual Notui context
+        /// </summary>
         public NotuiContext Context { get; }
+
+        /// <summary>
+        /// The hosting element have been destroyed
+        /// </summary>
         public bool Detached { get; private set; }
 
+        /// <inheritdoc />
         public void Mainloop(float deltatime)
         {
             OnMainLoopBegin?.Invoke(this, EventArgs.Empty);
@@ -79,9 +120,15 @@ namespace Notui
             OnMainLoopEnd?.Invoke(this, EventArgs.Empty);
         }
 
+        /// <inheritdoc />
         public event EventHandler OnMainLoopBegin;
+        /// <inheritdoc />
         public event EventHandler OnMainLoopEnd;
 
+        /// <summary>
+        /// Transfer this Subcontext to another element
+        /// </summary>
+        /// <param name="newelement"></param>
         public void SwitchElement(NotuiElement newelement)
         {
             AttachedElement.OnMainLoopEnd -= AttachedElementMainloopListener;
@@ -89,6 +136,9 @@ namespace Notui
             AttachedElement.OnMainLoopEnd += AttachedElementMainloopListener;
         }
 
+        /// <summary></summary>
+        /// <param name="element">The hosting element</param>
+        /// <param name="options">The creation option</param>
         public SubContext(NotuiElement element, SubContextOptions options)
         {
             AttachedElement = element;
@@ -102,26 +152,35 @@ namespace Notui
             Mainloop(ParentContext.DeltaTime);
         }
 
+        /// <inheritdoc />
         public SubContext Copy()
         {
             return new SubContext(AttachedElement, Options.Copy());
         }
 
+        /// <summary>
+        /// Copy this subcontext to another element
+        /// </summary>
+        /// <param name="destination"></param>
+        /// <returns>The new SubContext</returns>
         public SubContext Copy(NotuiElement destination)
         {
             return new SubContext(destination, Options.Copy());
         }
 
+        /// <inheritdoc />
         public object Clone()
         {
             throw new NotImplementedException();
         }
 
+        /// <inheritdoc />
         public void UpdateFrom(SubContextOptions other)
         {
             Options = other.Copy();
         }
 
+        /// <inheritdoc />
         public void Dispose()
         {
             if(Detached) return;

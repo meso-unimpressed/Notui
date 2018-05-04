@@ -29,6 +29,12 @@ namespace Notui
     /// </summary>
     public abstract class ElementPrototype : IElementCommon, ICloneable<ElementPrototype>, IUpdateable<NotuiElement>, IUpdateable<ElementPrototype>
     {
+        /// <summary>
+        /// Create a new Prototype from a different one
+        /// </summary>
+        /// <param name="element">The other prototype</param>
+        /// <param name="newId">Generate a new ID?</param>
+        /// <returns></returns>
         protected static ElementPrototype CreateFromPrototype(ElementPrototype element, bool newId = true)
         {
             var prottype = element.GetType();
@@ -48,6 +54,12 @@ namespace Notui
             }
         }
 
+        /// <summary>
+        /// Create a new prototype from an instance
+        /// </summary>
+        /// <param name="element">The element instance</param>
+        /// <param name="newId">Generate a new ID?</param>
+        /// <returns></returns>
         public static ElementPrototype CreateFromInstance(NotuiElement element, bool newId = true)
         {
             var prottype = element.Prototype.GetType();
@@ -70,19 +82,33 @@ namespace Notui
             }
         }
 
+        /// <inheritdoc cref="IElementCommon"/>
         public string Name { get; set; }
+        /// <inheritdoc cref="IElementCommon"/>
         public string Id { get; set; } = Guid.NewGuid().ToString();
+        /// <inheritdoc cref="IElementCommon"/>
         public bool Active { get; set; }
+        /// <inheritdoc cref="IElementCommon"/>
         public bool Transparent { get; set; }
+        /// <inheritdoc cref="IElementCommon"/>
         public float FadeOutTime { get; set; }
+        /// <inheritdoc cref="IElementCommon"/>
         public float FadeInTime { get; set; }
+        /// <inheritdoc cref="IElementCommon"/>
         public float FadeOutDelay { get; set; }
+        /// <inheritdoc cref="IElementCommon"/>
         public float FadeInDelay { get; set; }
+        /// <inheritdoc cref="IElementCommon"/>
         public float TransformationFollowTime { get; set; }
+        /// <inheritdoc cref="IElementCommon"/>
         public ElementTransformation DisplayTransformation { get; set; } = new ElementTransformation();
+        /// <inheritdoc cref="IElementCommon"/>
         public List<InteractionBehavior> Behaviors { get; set; } = new List<InteractionBehavior>();
+        /// <inheritdoc cref="IElementCommon"/>
         public AttachedValues Value { get; set; }
+        /// <inheritdoc cref="IElementCommon"/>
         public AuxiliaryObject EnvironmentObject { get; set; }
+        /// <inheritdoc cref="IElementCommon"/>
         public bool OnlyHitIfParentIsHit { get; set; }
 
         /// <summary>
@@ -124,6 +150,7 @@ namespace Notui
         /// </summary>
         /// <param name="insttype">The type of the element instances which this prototype will instantiate</param>
         /// <param name="id">Optional external unique Id. Use carefully!</param>
+        /// <param name="parent">Optional parent element if this prototype is a child</param>
         protected ElementPrototype(Type insttype, string id = null, ElementPrototype parent = null)
         {
             if (!insttype.Is(typeof(NotuiElement)))
@@ -187,6 +214,7 @@ namespace Notui
             return res;
         }
 
+        /// <inheritdoc cref="ICloneable{T}"/>
         public virtual ElementPrototype Copy()
         {
             var res = CreateFromPrototype(this, false);
@@ -194,16 +222,19 @@ namespace Notui
             return res;
         }
 
+        /// <inheritdoc cref="ICloneable"/>
         public object Clone()
         {
             return Copy();
         }
 
+        /// <inheritdoc cref="IUpdateable{T}"/>
         public virtual void UpdateFrom(NotuiElement other)
         {
             this.UpdateCommon(other, ApplyTransformMode.All);
         }
 
+        /// <inheritdoc cref="IUpdateable{T}"/>
         public virtual void UpdateFrom(ElementPrototype other)
         {
             this.UpdateCommon(other, ApplyTransformMode.All);
