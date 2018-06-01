@@ -112,7 +112,9 @@
     <Compile Include="Touch.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Notui.nuspec" />
+    <None Include="Notui.nuspec">
+      <SubType>Designer</SubType>
+    </None>
     <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

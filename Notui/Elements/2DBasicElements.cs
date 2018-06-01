@@ -55,6 +55,48 @@ namespace Notui.Elements
 
     /// <inheritdoc />
     /// <summary>
+    /// Prototype for empty element. Good for grouping together children without the need for hittesting
+    /// </summary>
+    public class VoidElementPrototype : ElementPrototype
+    {
+        /// <summary>
+        /// Regular constructor
+        /// </summary>
+        /// <param name="id">If null generate a new ID with System.GUID</param>
+        /// <param name="parent">Optional parent element if this prototype is a child</param>
+        public VoidElementPrototype(string id = null, ElementPrototype parent = null) :
+            base(typeof(VoidElement), id, parent)
+        { }
+
+        /// <summary>
+        /// Construct based on an instance
+        /// </summary>
+        /// <param name="fromInstance">The element instance</param>
+        /// <param name="newId">Generate a new ID?</param>
+        /// <remarks>Static function ElementPrototype.CreateFromInstance(...) is recommended to be used instead of this</remarks>
+        public VoidElementPrototype(NotuiElement fromInstance, bool newId = true) : base(fromInstance, newId) { }
+    }
+    /// <inheritdoc />
+    /// <summary>
+    /// Empty element. Good for grouping together children without the need for hittesting
+    /// </summary>
+    public class VoidElement : NotuiElement
+    {
+        /// <inheritdoc cref="NotuiElement"/>
+        public override IntersectionPoint PureHitTest(Touch touch, bool prevpos, out IntersectionPoint persistentIspoint)
+        {
+            persistentIspoint = null;
+            return null;
+        }
+
+        /// <inheritdoc cref="NotuiElement"/>
+        public VoidElement(ElementPrototype prototype, NotuiContext context, NotuiElement parent = null) :
+            base(prototype, context, parent)
+        { }
+    }
+
+    /// <inheritdoc />
+    /// <summary>
     /// Infinite planar element prototype. Good for backgrounds or scrolling
     /// </summary>
     public class InfinitePlaneElementPrototype : ElementPrototype
