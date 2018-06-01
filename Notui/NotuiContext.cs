@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Threading.Tasks;
 using md.stdl.Coding;
 using md.stdl.Interaction;
 using md.stdl.Interfaces;
@@ -13,19 +14,53 @@ using Matrix4x4 = System.Numerics.Matrix4x4;
 
 namespace Notui
 {
+    internal class MainloopThread
+    {
+        public readonly Task Task;
+        public IEnumerable<NotuiElement> Workset;
+        public NotuiContext Context;
+
+        private void ProcessElements(NotuiElement el)
+        {
+            foreach (var touch in Context.Touches.Values)
+            {
+                el.ProcessTouch(touch);
+            }
+            el.Mainloop(Context.DeltaTime);
+        }
+
+        public void HierarchicalExecution()
+        {
+            void RecursiveChildrenExec(NotuiElement recel)
+            {
+                ProcessElements(recel);
+                if (recel.Children.Count <= 0) return;
+                recel.Children.Values.ForEach(RecursiveChildrenExec);
+            }
+            Workset.ForEach(RecursiveChildrenExec);
+        }
+
+        internal MainloopThread(IEnumerable<NotuiElement> workset, NotuiContext ctx, bool async = true)
+        {
+            Context = ctx;
+            Workset = workset;
+            if(async) Task = Task.Factory.StartNew(HierarchicalExecution);
+        }
+    }
     /// <summary>
     /// Notui Context to manage GuiElements and Touches
     /// </summary>
     public class NotuiContext : IMainlooping
     {
         /// <summary>
-        /// Use PLINQ or not?
+        /// Number of parallel threads run to process root elements. 1 means it's just async but not parallel, less than 1 means processing is run synchronously
         /// </summary>
-        public bool UseParallel { get; set; } = true;
+        public int ParallelThreads { get; set; } = 4;
+
         /// <summary>
-        /// Execute from Parent to child or on the FlatElements
+        /// The timeout to wait for the elements' mainloop thread in ms (in case they still haven't finished from previous frame)
         /// </summary>
-        public bool MaintainExecutionOrder { get; set; } = true;
+        public int ThreadsTimeout { get; set; } = 10;
 
         /// <summary>
         /// Consider touches to be new before the age of this amount of frames
@@ -127,6 +162,9 @@ namespace Notui
         private IDisposable _mouseUnsubscriber;
         private Vector2 _mouseTouchPos;
         private bool _rebuild = false;
+        private MainloopThread[] _mainloopTaskPool;
+        private MainloopThread _syncMainloopThread;
+        private int _prevThreadCount;
 
         /// <inheritdoc />
         public event EventHandler OnMainLoopBegin;
@@ -192,40 +230,40 @@ namespace Notui
         /// <inheritdoc />
         public void Mainloop(float deltatime)
         {
+            if (ParallelThreads > 0 && _mainloopTaskPool != null)
+            {
+                var mltasks = _mainloopTaskPool
+                    .Take(_prevThreadCount)
+                    .Select(mt => mt.Task)
+                    .Where(t => !(t.IsCompleted || t.IsCanceled || t.IsFaulted))
+                    .ToArray();
+
+                if(mltasks.Length > 0)
+                    Task.WaitAll(mltasks, ThreadsTimeout);
+            }
+
             OnMainLoopBegin?.Invoke(this, EventArgs.Empty);
 
-            Matrix4x4.Invert(AspectRatio, out var invasp);
-            //Matrix4x4.Invert(Projection, out var invproj);
-            Matrix4x4.Invert(View, out var invview);
-            var aspproj = Projection * invasp;
-            Matrix4x4.Invert(aspproj, out var invaspproj);
+            CalcMatrices(deltatime);
+            RemoveExpiredTouches(deltatime);
+            ScanForElementChanges();
+            ProcessInputTouches(deltatime);
 
-            ViewInverse = invview;
-            ProjectionWithAspectRatio = aspproj;
-            ProjectionWithAspectRatioInverse = invaspproj;
-            DeltaTime = deltatime;
+            // preparing elements for hittest
+            foreach (var element in FlatElements)
+                element.Hovering.Clear();
 
-            Matrix4x4.Decompose(invview, out var vscale, out var vquat, out var vpos);
-            ViewOrientation = vquat;
-            ViewPosition = vpos;
-            ViewDirection = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitZ, View));
+            // look at which touches hit which element
+            Touches.Values.ForEach(ProcessTouches);
 
-            // Removing expired touches
-            var removabletouches = (from touch in Touches.Values
-                where touch.ExpireFrames > ConsiderReleasedAfter
-                select touch.Id).ToArray();
-            foreach (var tid in removabletouches)
-            {
-                Touches.TryRemove(tid, out var dummy);
-            }
+            ParallelElementsMainloop();
 
-            foreach (var touch in Touches.Values)
-            {
-                touch.Mainloop(deltatime);
-                touch.HittingElements.Clear();
-            }
+            MouseDelta?.Mainloop(deltatime);
+            OnMainLoopEnd?.Invoke(this, EventArgs.Empty);
+        }
 
-            // Scan through elements if any of them wants to be killed or if there are new ones
+        private void ScanForElementChanges()
+        {
             foreach (var element in FlatElements)
             {
                 var dethklok = element.Dethklok;
@@ -248,10 +286,12 @@ namespace Notui
                 _elementsUpdated = false;
                 OnElementsUpdated?.Invoke(this, EventArgs.Empty);
             }
-            if(_rebuild) BuildFlatList();
+            if (_rebuild) BuildFlatList();
             _rebuild = false;
+        }
 
-            // Process input touches
+        private void ProcessInputTouches(float deltatime)
+        {
             foreach (var touch in _inputTouches)
             {
                 Touch tt;
@@ -289,88 +329,109 @@ namespace Notui
                     tt.Press(MinimumForce);
                 }
             }
-
-
-            // preparing elements for hittest
-            foreach (var element in FlatElements)
-            {
-                element.Hovering.Clear();
-            }
-
-            // look at which touches hit which element
-            void ProcessTouches(Touch touch)
-            {
-                // Transform touches into world
-                Coordinates.GetPointWorldPosDir(touch.Point, invaspproj, invview, out var tpw, out var tpd);
-                touch.WorldPosition = tpw;
-                touch.ViewDir = tpd;
-
-                // get hitting intersections and order them from closest to furthest
-                var intersections = FlatElements.Select(el =>
-                    {
-                        var intersection = el.HitTest(touch);
-                        //if (intersection != null) intersection.Element = el;
-                        return intersection;
-                    })
-                    .Where(insec => insec != null)
-                    .Where(insec => insec.Element.Active)
-                    .OrderBy(insec =>
-                    {
-                        var screenpos = Vector4.Transform(new Vector4(insec.WorldTransform.Translation, 1), View * aspproj);
-                        return screenpos.Z / screenpos.W;
-                    });
-
-                // Sift through ordered intersection list until the furthest non-transparent element
-                // or in other words ignore all intersected elements which are further away from the closest non-transparent element
-                var passedintersections = GetTopInteractableElements(intersections);
-
-                // Add the touch and the corresponding intersection point to the interacting elements
-                // and attach those elements to the touch too.
-                touch.HittingElements.AddRange(passedintersections.Select(insec =>
-                {
-                    insec.Element.Hovering.TryAdd(touch, insec);
-                    return insec.Element;
-                }));
-
-            }
-            if(UseParallel) Touches.Values.AsParallel().ForAll(ProcessTouches);
-            else Touches.Values.ForEach(ProcessTouches);
-
-            // Do element logic
-            if(MaintainExecutionOrder) HierarchicalExecution();
-            else FlatExecution();
-
-            MouseDelta?.Mainloop(deltatime);
-            OnMainLoopEnd?.Invoke(this, EventArgs.Empty);
         }
 
-        private void ProcessElements(NotuiElement el)
+        private void RemoveExpiredTouches(float deltatime)
         {
+            var removabletouches = (from touch in Touches.Values
+                where touch.ExpireFrames > ConsiderReleasedAfter
+                select touch.Id).ToArray();
+            foreach (var tid in removabletouches)
+            {
+                Touches.TryRemove(tid, out var dummy);
+            }
+
             foreach (var touch in Touches.Values)
             {
-                el.ProcessTouch(touch);
+                touch.Mainloop(deltatime);
+                touch.HittingElements.Clear();
             }
-            el.Mainloop(DeltaTime);
         }
 
-        private void FlatExecution()
+        private void CalcMatrices(float deltatime)
         {
-            if (UseParallel) FlatElements.AsParallel().ForAll(ProcessElements);
-            else FlatElements.ForEach(ProcessElements);
+
+            Matrix4x4.Invert(AspectRatio, out var invasp);
+            //Matrix4x4.Invert(Projection, out var invproj);
+            Matrix4x4.Invert(View, out var invview);
+            var aspproj = Projection * invasp;
+            Matrix4x4.Invert(aspproj, out var invaspproj);
+
+            ViewInverse = invview;
+            ProjectionWithAspectRatio = aspproj;
+            ProjectionWithAspectRatioInverse = invaspproj;
+            DeltaTime = deltatime;
+
+            Matrix4x4.Decompose(invview, out var vscale, out var vquat, out var vpos);
+            ViewOrientation = vquat;
+            ViewPosition = vpos;
+            ViewDirection = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitZ, View));
         }
 
-        private void HierarchicalExecution()
+        private void ParallelElementsMainloop()
         {
-            void RecursiveChildrenExec(NotuiElement recel)
+            if (ParallelThreads >= 1)
             {
-                ProcessElements(recel);
-                if (recel.Children.Count <= 0) return;
-                //if (UseParallel) recel.Children.Values.AsParallel().ForAll(RecursiveChildrenExec);
-                /*else*/ recel.Children.Values.ForEach(RecursiveChildrenExec);
-            }
+                if (_mainloopTaskPool == null)
+                    _mainloopTaskPool = new MainloopThread[ParallelThreads];
 
-            if (UseParallel) RootElements.Values.AsParallel().ForAll(RecursiveChildrenExec);
-            else RootElements.Values.ForEach(RecursiveChildrenExec);
+                var step = (int)Math.Ceiling((float)RootElements.Count / ParallelThreads);
+                var curr = 0;
+                _prevThreadCount = 0;
+                while (true)
+                {
+                    var ctake = Math.Min(step, RootElements.Count - curr);
+                    var workset = RootElements.Values.Skip(curr).Take(ctake);
+                    var thread = new MainloopThread(workset, this);
+
+                    _mainloopTaskPool[_prevThreadCount] = thread;
+                    _prevThreadCount++;
+
+                    curr += step;
+                    if (curr >= RootElements.Count) break;
+                }
+            }
+            else
+            {
+                if(_syncMainloopThread == null) _syncMainloopThread = new MainloopThread(RootElements.Values, this, false);
+                _syncMainloopThread.Workset = RootElements.Values;
+                _syncMainloopThread.HierarchicalExecution();
+            }
+        }
+
+        private void ProcessTouches(Touch touch)
+        {
+            // Transform touches into world
+            Coordinates.GetPointWorldPosDir(touch.Point, ProjectionWithAspectRatioInverse, ViewInverse, out var tpw, out var tpd);
+            touch.WorldPosition = tpw;
+            touch.ViewDir = tpd;
+
+            // get hitting intersections and order them from closest to furthest
+            var intersections = FlatElements.Select(el =>
+                {
+                    var intersection = el.HitTest(touch);
+                    //if (intersection != null) intersection.Element = el;
+                    return intersection;
+                })
+                .Where(insec => insec != null)
+                .Where(insec => insec.Element.Active)
+                .OrderBy(insec =>
+                {
+                    var screenpos = Vector4.Transform(new Vector4(insec.WorldTransform.Translation, 1), View * ProjectionWithAspectRatio);
+                    return screenpos.Z / screenpos.W;
+                });
+
+            // Sift through ordered intersection list until the furthest non-transparent element
+            // or in other words ignore all intersected elements which are further away from the closest non-transparent element
+            var passedintersections = GetTopInteractableElements(intersections);
+
+            // Add the touch and the corresponding intersection point to the interacting elements
+            // and attach those elements to the touch too.
+            touch.HittingElements.AddRange(passedintersections.Select(insec =>
+            {
+                insec.Element.Hovering.TryAdd(touch, insec);
+                return insec.Element;
+            }));
         }
 
         /// <summary>
