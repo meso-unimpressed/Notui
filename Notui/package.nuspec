@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
-<package >
+<package>
   <metadata>
     <id>Notui</id>
-    <version>$version$-beta</version>
+    <version>0.3.0</version>
     <title>Notui</title>
     <authors>David Mórász (microdee)</authors>
     <owners>David Mórász (microdee)</owners>

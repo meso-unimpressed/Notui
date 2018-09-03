@@ -1,0 +1,3 @@
+[submodule "vvvvlib"]
+	path = vvvvlib
+	url = https://github.com/vvvvpm/vvvvlib.git

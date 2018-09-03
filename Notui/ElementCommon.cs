@@ -41,7 +41,7 @@ namespace Notui
         /// <summary>
         /// Whatever you want as long as it's clonable
         /// </summary>
-        public Dictionary<string, AuxiliaryObject> Auxiliary = new Dictionary<string, AuxiliaryObject>();
+        public readonly Dictionary<string, AuxiliaryObject> Auxiliary = new Dictionary<string, AuxiliaryObject>();
 
         /// <inheritdoc cref="ICloneable{T}"/>
         public AttachedValues Copy()
