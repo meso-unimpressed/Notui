@@ -100,7 +100,7 @@ namespace Notui
         /// <inheritdoc />
         public AttachedValues Value { get; set; }
         /// <inheritdoc />
-        public AuxiliaryObject EnvironmentObject { get; set; }
+        public IAuxiliaryObject EnvironmentObject { get; set; }
         /// <inheritdoc />
         public bool OnlyHitIfParentIsHit { get; set; }
 

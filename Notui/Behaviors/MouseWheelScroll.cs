@@ -27,7 +27,7 @@ namespace Notui.Behaviors
             public Vector2 DeltaPos = Vector2.Zero;
 
             /// <inheritdoc cref="AuxiliaryObject"/>
-            public override AuxiliaryObject Copy()
+            public override IAuxiliaryObject Copy()
             {
                 return new BehaviorState
                 {
@@ -36,7 +36,7 @@ namespace Notui.Behaviors
             }
 
             /// <inheritdoc cref="AuxiliaryObject"/>
-            public override void UpdateFrom(AuxiliaryObject other)
+            public override void UpdateFrom(IAuxiliaryObject other)
             {
                 if (!(other is BehaviorState bs)) return;
                 DeltaPos = bs.DeltaPos;

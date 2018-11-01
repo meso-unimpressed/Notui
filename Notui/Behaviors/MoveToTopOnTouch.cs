@@ -46,13 +46,13 @@ namespace Notui.Behaviors
             }
 
             /// <inheritdoc cref="AuxiliaryObject"/>
-            public override AuxiliaryObject Copy()
+            public override IAuxiliaryObject Copy()
             {
                 return new BehaviorState(_element);
             }
 
             /// <inheritdoc cref="AuxiliaryObject"/>
-            public override void UpdateFrom(AuxiliaryObject other) { }
+            public override void UpdateFrom(IAuxiliaryObject other) { }
         }
 
         /// <summary>

@@ -50,7 +50,7 @@ namespace Notui
         /// <typeparam name="T">The type of the behavior state</typeparam>
         /// <param name="element"></param>
         /// <returns></returns>
-        public T GetState<T>(NotuiElement element) where T : AuxiliaryObject
+        public T GetState<T>(NotuiElement element) where T : IAuxiliaryObject
         {
             if (element.Value == null)
                 element.Value = new AttachedValues();
@@ -71,7 +71,7 @@ namespace Notui
         /// <param name="element"></param>
         /// <param name="value">The state to be assigned</param>
         /// <returns></returns>
-        public void SetState(NotuiElement element, AuxiliaryObject value)
+        public void SetState(NotuiElement element, IAuxiliaryObject value)
         {
             if (element.Value == null)
                 element.Value = new AttachedValues();

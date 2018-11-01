@@ -11,14 +11,19 @@ using md.stdl.Time;
 namespace Notui
 {
     /// <summary>
+    /// Base interface for auxiliary attached element object
+    /// </summary>
+    public interface IAuxiliaryObject : ICloneable<IAuxiliaryObject>, IUpdateable<IAuxiliaryObject> { }
+
+    /// <summary>
     /// Base class for auxiliary attached element object
     /// </summary>
-    public abstract class AuxiliaryObject : ICloneable<AuxiliaryObject>, IUpdateable<AuxiliaryObject>
+    public abstract class AuxiliaryObject : IAuxiliaryObject
     {
         /// <inheritdoc cref="ICloneable{T}"/>
-        public abstract AuxiliaryObject Copy();
+        public abstract IAuxiliaryObject Copy();
         /// <inheritdoc cref="IUpdateable{T}"/>
-        public abstract void UpdateFrom(AuxiliaryObject other);
+        public abstract void UpdateFrom(IAuxiliaryObject other);
         /// <inheritdoc cref="ICloneable"/>
         public object Clone() => Copy();
     }
@@ -41,7 +46,7 @@ namespace Notui
         /// <summary>
         /// Whatever you want as long as it's clonable
         /// </summary>
-        public readonly Dictionary<string, AuxiliaryObject> Auxiliary = new Dictionary<string, AuxiliaryObject>();
+        public readonly Dictionary<string, IAuxiliaryObject> Auxiliary = new Dictionary<string, IAuxiliaryObject>();
 
         /// <inheritdoc cref="ICloneable{T}"/>
         public AttachedValues Copy()
@@ -151,7 +156,7 @@ namespace Notui
         /// <summary>
         /// Optional environment specific object for implementations so Value is not polluted
         /// </summary>
-        AuxiliaryObject EnvironmentObject { get; set; }
+        IAuxiliaryObject EnvironmentObject { get; set; }
 
         /// <summary>
         /// Hittest is only successful if parent hittest is also successful

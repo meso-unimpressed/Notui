@@ -21,13 +21,13 @@ namespace Notui.Behaviors
         public class BehaviorState : AuxiliaryObject
         {
             /// <inheritdoc cref="AuxiliaryObject"/>
-            public override AuxiliaryObject Copy()
+            public override IAuxiliaryObject Copy()
             {
                 return new BehaviorState();
             }
 
             /// <inheritdoc cref="AuxiliaryObject"/>
-            public override void UpdateFrom(AuxiliaryObject other) { }
+            public override void UpdateFrom(IAuxiliaryObject other) { }
         }
 
         /// <summary>

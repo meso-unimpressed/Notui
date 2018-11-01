@@ -107,7 +107,7 @@ namespace Notui
         /// <inheritdoc cref="IElementCommon"/>
         public AttachedValues Value { get; set; }
         /// <inheritdoc cref="IElementCommon"/>
-        public AuxiliaryObject EnvironmentObject { get; set; }
+        public IAuxiliaryObject EnvironmentObject { get; set; }
         /// <inheritdoc cref="IElementCommon"/>
         public bool OnlyHitIfParentIsHit { get; set; }
 
