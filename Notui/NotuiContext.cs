@@ -35,9 +35,15 @@ namespace Notui
             {
                 ProcessElements(recel);
                 if (recel.Children.Count <= 0) return;
-                recel.Children.Values.ForEach(RecursiveChildrenExec);
+                foreach (var child in recel.Children.Values)
+                {
+                    RecursiveChildrenExec(child);
+                }
             }
-            Workset.ForEach(RecursiveChildrenExec);
+            foreach (var element in Workset)
+            {
+                RecursiveChildrenExec(element);
+            }
         }
 
         internal MainloopThread(IEnumerable<NotuiElement> workset, NotuiContext ctx, bool async = true)
@@ -254,7 +260,10 @@ namespace Notui
                 element.Hovering.Clear();
 
             // look at which touches hit which element
-            Touches.Values.ForEach(ProcessTouches);
+            foreach (var touch in Touches.Values)
+            {
+                ProcessTouches(touch);
+            }
 
             ParallelElementsMainloop();
 
