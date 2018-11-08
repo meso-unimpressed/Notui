@@ -35,7 +35,10 @@
   <ItemGroup>
     <Reference Include="md.stdl, Version=0.3.5.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\md-stdl.0.3.5\lib\net47\md.stdl.dll</HintPath>
+      <Private>False</Private>
     </Reference>
+    <Reference Include="PresentationCore" />
+    <Reference Include="PresentationFramework" />
     <Reference Include="SevenZip, Version=9.20.0.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\LZMA-SDK.9.20\lib\net20\SevenZip.dll</HintPath>
       <SpecificVersion>False</SpecificVersion>

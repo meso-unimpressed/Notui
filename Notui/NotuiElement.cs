@@ -3,14 +3,18 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Numerics;
 using System.Reactive;
 using System.Reactive.Linq;
+using System.Windows;
 using System.Windows.Forms;
+using System.Windows.Media;
+using System.Windows.Media.Animation;
 using md.stdl.Interaction;
 using md.stdl.Interfaces;
 using md.stdl.Time;
 using SharpDX.RawInput;
+using VVVV.Utils.VMath;
+using Matrix4x4 = System.Numerics.Matrix4x4;
 
 namespace Notui
 {
@@ -47,21 +51,26 @@ namespace Notui
     /// <summary>
     /// Simple element base implementing some useful management functions
     /// </summary>
-    public abstract class NotuiElement : IElementCommon, ICloneable<NotuiElement>, IUpdateable<ElementPrototype>, IMainlooping
+    public abstract class NotuiElement : DependencyObject, IElementCommon, ICloneable<NotuiElement>, IUpdateable<ElementPrototype>, IMainlooping
     {
+        /// <summary></summary>
+        public static readonly DependencyProperty RawFadeInProgressProperty = DependencyProperty.Register(
+            "RawFadeInProgress",
+            typeof(double),
+            typeof(NotuiElement)
+        );
+
+        /// <summary></summary>
+        public static readonly DependencyProperty RawFadeOutProgressProperty = DependencyProperty.Register(
+            "RawFadeOutProgress",
+            typeof(double),
+            typeof(NotuiElement)
+        );
+
         private Matrix4x4 _displayMatrix;
         private Matrix4x4 _invDisplayMatrix;
         private bool _onFadedInInvoked;
         private SubContext _subContext;
-
-        /// <summary>
-        /// Timer for the FadeOut delay
-        /// </summary>
-        public StopwatchInteractive FadeOutDelayTimer = new StopwatchInteractive();
-        /// <summary>
-        /// Timer for the FadeIn delay
-        /// </summary>
-        public StopwatchInteractive FadeInDelayTimer = new StopwatchInteractive();
         
         /// <inheritdoc />
         public string Name { get; set; }
@@ -80,6 +89,11 @@ namespace Notui
         /// </summary>
         public float AbsoluteFadeOutDelay => FadeOutDelay + (Children.Count > 0 ? Children.Values.Max(cel => cel.FadeOutDelay) : 0);
 
+        /// <summary>
+        /// Time it takes to completely fade out the element
+        /// </summary>
+        public float AbsoluteFadeOutTime => AbsoluteFadeOutDelay + FadeOutDelay;
+
         /// <inheritdoc />
         public float FadeInDelay { get; set; }
 
@@ -87,6 +101,11 @@ namespace Notui
         /// Fade in delay taking into account parent delay
         /// </summary>
         public float AbsoluteFadeInDelay => FadeInDelay + (Parent?.FadeInDelay ?? 0);
+
+        /// <summary>
+        /// Time it takes to completely fade in the element
+        /// </summary>
+        public float AbsoluteFadeInTime => AbsoluteFadeInDelay + FadeInDelay;
 
         /// <inheritdoc />
         public float TransformationFollowTime { get; set; }
@@ -140,7 +159,42 @@ namespace Notui
         /// <summary>
         /// Element fading from 0 (faded out) to 1 (faded in)
         /// </summary>
-        public float ElementFade { get; set; }
+        public double ElementFade { get; set; }
+
+        /// <summary>
+        /// 0 to 1 progress of Fadein including delays
+        /// </summary>
+        public double RawFadeInProgress
+        {
+            get => (double) GetValue(RawFadeInProgressProperty);
+            set => SetValue(RawFadeInProgressProperty, value);
+        }
+
+        /// <summary>
+        /// 0 at element faded out, 1 at faded in, respecting delays
+        /// </summary>
+        public double FadeInProgress => VMath.Map(RawFadeInProgress * AbsoluteFadeInTime, AbsoluteFadeInDelay, AbsoluteFadeInTime, 0.0, 1.0, TMapMode.Clamp);
+
+        /// <summary>
+        /// Animation driving the fadein;
+        /// </summary>
+        public DoubleAnimation FadeInAnimation { get; private set; }
+
+        /// <summary>
+        /// 0 to 1 progress of Fadeout including delays
+        /// </summary>
+        public double RawFadeOutProgress
+        {
+            get => (double)GetValue(RawFadeOutProgressProperty);
+            set => SetValue(RawFadeOutProgressProperty, value);
+        }
+
+        /// <summary>
+        /// 0 at element faded in, 1 at faded out, respecting delays
+        /// </summary>
+        public double FadeOutProgress => VMath.Map(RawFadeOutProgress * AbsoluteFadeOutTime, AbsoluteFadeOutDelay, AbsoluteFadeOutTime, 0.0, 1.0, TMapMode.Clamp);
+
+        public DoubleAnimation FadeOutAnimation { get; private set; }
 
         /// <summary>
         /// List of touches interacting with this element which is managed by this element
@@ -181,22 +235,14 @@ namespace Notui
         public bool Dying { get; set; }
 
         /// <summary>
+        /// True while fading in.
+        /// </summary>
+        public bool FadingIn { get; set; }
+
+        /// <summary>
         /// Element age since creation
         /// </summary>
         public StopwatchInteractive Age { get; set; } = new StopwatchInteractive();
-
-        /// <summary>
-        /// This stopwatch is started to fade in this element after creation (+ optional delay).
-        /// </summary>
-        public StopwatchInteractive FadeInStopwatch { get; set; } = new StopwatchInteractive();
-
-        /// <summary>
-        /// This stopwatch is started to fade out this element before deletion.
-        /// </summary>
-        /// <remarks>
-        /// Metalocalypse
-        /// </remarks>
-        public StopwatchInteractive Dethklok { get; set; } = new StopwatchInteractive();
 
         /// <summary>
         /// Was display matrix already calculated since last request.
@@ -487,7 +533,7 @@ namespace Notui
             {
                 foreach (var child in Children.Values.ToArray())
                 {
-                    if (child.Dying && child.Dethklok.Elapsed.TotalSeconds > child.FadeOutTime)
+                    if (child.Dying && child.DeleteMe)
                     {
                         Children.Remove(child.Id);
                         Context.RequestRebuild(true, false);
@@ -534,34 +580,17 @@ namespace Notui
                     Touching[touch] = inters;
             }
 
-            FadeOutDelayTimer.Mainloop(deltatime);
-            FadeInDelayTimer.Mainloop(deltatime);
-
-            if (FadeInTime > 0)
+            if (AbsoluteFadeInTime > 0 && AbsoluteFadeOutTime > 0)
             {
-                ElementFade = Math.Min(Math.Max(0, (float) FadeInStopwatch.Elapsed.TotalSeconds / FadeInTime), 1);
+                ElementFade = VMath.Clamp(FadeInProgress - FadeOutProgress, 0.0, 1.0);
             }
-            else if(FadeInStopwatch.IsRunning)
+            else if (AbsoluteFadeInTime > 0)
             {
-                if(ElementFade < 1) OnFadedIn?.Invoke(this, EventArgs.Empty);
-                _onFadedInInvoked = true;
-                ElementFade = 1;
+                ElementFade = VMath.Clamp(FadeInProgress, 0.0, 1.0);
             }
-            if (FadeInStopwatch.Elapsed.TotalSeconds >= FadeInTime && !_onFadedInInvoked)
+            else if (AbsoluteFadeOutTime > 0)
             {
-                OnFadedIn?.Invoke(this, EventArgs.Empty);
-                _onFadedInInvoked = true;
-            }
-
-            if (FadeOutTime > 0)
-            {
-                ElementFade *= Math.Min(Math.Max(0, 1 - (float)Dethklok.Elapsed.TotalSeconds / FadeOutTime), 1);
-                if (Dethklok.Elapsed.TotalSeconds > FadeOutTime && Dethklok.IsRunning && Age.Elapsed.TotalSeconds > Context.DeltaTime)
-                {
-                    ElementFade = 0;
-                    if(!DeleteMe) OnDeleting?.Invoke(this, EventArgs.Empty);
-                    DeleteMe = true;
-                }
+                ElementFade = VMath.Clamp(1.0 - FadeOutProgress, 0.0, 1.0);
             }
 
             Mice = Touching.Keys.Where(t => t.AttachadMouse != null)
@@ -676,13 +705,23 @@ namespace Notui
         /// <inheritdoc />
         public virtual void UpdateFrom(ElementPrototype other)
         {
-            if(Dying) return;
             if (TransformationFollowTime > 0)
             {
                 this.UpdateCommon(other);
                 TargetTransformation.UpdateFrom(other.DisplayTransformation);
             }
             else this.UpdateCommon(other, other.TransformApplication);
+
+            if (Dying)
+            {
+                var fadeoutcancelanim = new DoubleAnimation(0.0, new Duration(TimeSpan.FromSeconds(AbsoluteFadeInTime)));
+                fadeoutcancelanim.Completed += (sender, args) =>
+                {
+                    OnFadedIn?.Invoke(this, EventArgs.Empty);
+                };
+                Dying = false;
+                fadeoutcancelanim.BeginAnimation(RawFadeOutProgressProperty, null, HandoffBehavior.SnapshotAndReplace);
+            }
 
             UpdateChildren(true, other.Children.Values.ToArray());
         }
@@ -710,19 +749,37 @@ namespace Notui
                 Children.Add(child.Id, newchild);
             }
 
-            if (AbsoluteFadeInDelay > 0.0f)
-            {
-                FadeInDelayTimer.SetTrigger(TimeSpan.FromSeconds(AbsoluteFadeInDelay));
-                FadeInDelayTimer.OnTriggerPassed += (sender, args) => FadeInStopwatch.Start();
-                FadeInDelayTimer.Start();
-            }
-            else FadeInStopwatch.Start();
+            InitializeFadeInAnim();
+            InitializeFadeOutAnim();
+
             Age.Start();
 
             if (prototype.SubContextOptions != null)
             {
                 SubContext = new SubContext(this, prototype.SubContextOptions);
             }
+        }
+
+        private void InitializeFadeInAnim()
+        {
+            FadeInAnimation = new DoubleAnimation(1.0, new Duration(TimeSpan.FromSeconds(AbsoluteFadeInDelay + FadeInTime)));
+            FadeInAnimation.Completed += (sender, args) =>
+            {
+                Dying = false;
+                DeleteMe = false;
+                OnFadedIn?.Invoke(this, EventArgs.Empty);
+            };
+            FadeInAnimation.BeginAnimation(RawFadeInProgressProperty, null, HandoffBehavior.SnapshotAndReplace);
+        }
+
+        private void InitializeFadeOutAnim()
+        {
+            FadeOutAnimation = new DoubleAnimation(1.0, new Duration(TimeSpan.FromSeconds(AbsoluteFadeOutDelay + FadeOutTime)));
+            FadeOutAnimation.Completed += (sender, args) =>
+            {
+                OnDeleting?.Invoke(this, EventArgs.Empty);
+                if(Dying) DeleteMe = true;
+            };
         }
 
         /// <summary>
@@ -781,17 +838,7 @@ namespace Notui
             {
                 child.StartDeletion();
             }
-            if (AbsoluteFadeOutDelay > 0.0f)
-            {
-                FadeOutDelayTimer.SetTrigger(TimeSpan.FromSeconds(AbsoluteFadeOutDelay));
-                FadeOutDelayTimer.OnTriggerPassed += (sender, args) =>
-                {
-                    Delete();
-                };
-                FadeOutDelayTimer.Start();
-            }
-            else Delete();
-            Dying = true;
+            Delete();
         }
 
         /// <summary>
@@ -799,16 +846,30 @@ namespace Notui
         /// </summary>
         protected void Delete()
         {
-            if (FadeOutTime > 0)
+            if (AbsoluteFadeOutTime > 0)
             {
-                if (!Dethklok.IsRunning) OnDeletionStarted?.Invoke(this, EventArgs.Empty);
-                Dethklok.Start();
+                if (FadingIn)
+                {
+                    var fadeincancelanim =  new DoubleAnimation(0.0, new Duration(TimeSpan.FromSeconds(AbsoluteFadeOutDelay)));
+                    fadeincancelanim.Completed += (sender, args) =>
+                    {
+                        OnDeleting?.Invoke(this, EventArgs.Empty);
+                        if (Dying) DeleteMe = true;
+                    };
+                    fadeincancelanim.BeginAnimation(RawFadeInProgressProperty, null, HandoffBehavior.SnapshotAndReplace);
+                }
+                else
+                {
+                    FadeOutAnimation.BeginAnimation(RawFadeOutProgressProperty, null, HandoffBehavior.SnapshotAndReplace);
+                }
+                OnDeletionStarted?.Invoke(this, EventArgs.Empty);
+                Dying = true;
             }
             else
             {
-                ElementFade = 0;
-                if (Age.Elapsed.TotalSeconds > Context.DeltaTime) OnDeleting?.Invoke(this, EventArgs.Empty);
+                OnDeleting?.Invoke(this, EventArgs.Empty);
                 DeleteMe = true;
+                Dying = true;
             }
         }
     }
