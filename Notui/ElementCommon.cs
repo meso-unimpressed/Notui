@@ -77,11 +77,10 @@ namespace Notui
             Values.Fill(other.Values);
             Texts.Fill(other.Texts);
 
+            Auxiliary.Clear();
             foreach (var auxval in other.Auxiliary)
             {
-                if (Auxiliary.ContainsKey(auxval.Key))
-                    Auxiliary[auxval.Key].UpdateFrom(auxval.Value);
-                else Auxiliary.Add(auxval.Key, auxval.Value.Copy());
+                Auxiliary.Add(auxval.Key, auxval.Value);
             }
         }
     }

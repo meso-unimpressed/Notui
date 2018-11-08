@@ -37,14 +37,17 @@ namespace Notui
         /// </summary>
         public IntersectionSpaceSelection TouchSpaceSource { get; set; } =
             IntersectionSpaceSelection.FromSurfaceSpace;
-        
+
+        public bool UpdateOnlyChangeFlagged { get; set; }
+
         /// <inheritdoc />
         public SubContextOptions Copy()
         {
             return new SubContextOptions
             {
                 IncludeHitting = IncludeHitting,
-                TouchSpaceSource = TouchSpaceSource
+                TouchSpaceSource = TouchSpaceSource,
+                UpdateOnlyChangeFlagged = UpdateOnlyChangeFlagged
             };
         }
 
@@ -144,7 +147,10 @@ namespace Notui
             AttachedElement = element;
             Options = options.Copy();
             element.OnMainLoopEnd += AttachedElementMainloopListener;
-            Context = new NotuiContext();
+            Context = new NotuiContext
+            {
+                UpdateOnlyChangeFlagged = Options.UpdateOnlyChangeFlagged
+            };
         }
 
         private void AttachedElementMainloopListener(object sender, EventArgs e)

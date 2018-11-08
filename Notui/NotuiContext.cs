@@ -69,6 +69,11 @@ namespace Notui
         public int ThreadsTimeout { get; set; } = 10;
 
         /// <summary>
+        /// Number of parallel threads run to process root elements. 1 means it's just async but not parallel, less than 1 means processing is run synchronously
+        /// </summary>
+        public bool UpdateOnlyChangeFlagged { get; set; } = true;
+
+        /// <summary>
         /// Consider touches to be new before the age of this amount of frames
         /// </summary>
         public int ConsiderNewBefore { get; set; } = 1;
@@ -275,9 +280,7 @@ namespace Notui
         {
             foreach (var element in FlatElements)
             {
-                var dethklok = element.Dethklok;
-                var deleteme = element.DeleteMe || (float)dethklok.Elapsed.TotalSeconds > element.FadeOutTime && element.Dying;
-                if (!deleteme) continue;
+                if (!element.DeleteMe) continue;
                 _rebuild = true;
                 _elementsDeleted = true;
                 if (element.Parent == null) RootElements.Remove(element.Id);
@@ -461,7 +464,9 @@ namespace Notui
                 }
             }
 
-            foreach (var el in elements)
+            var input = UpdateOnlyChangeFlagged ? elements.Where(prot => prot.IsChanged) : elements;
+
+            foreach (var el in input)
             {
                 if (RootElements.ContainsKey(el.Id))
                     RootElements[el.Id].UpdateFrom(el);

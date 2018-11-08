@@ -22,6 +22,7 @@ namespace Notui
             _instType = t.FullName;
         }
     }
+
     /// <inheritdoc cref="ICloneable{T}" />
     /// <inheritdoc cref="IElementCommon"/>
     /// <summary>
@@ -125,6 +126,11 @@ namespace Notui
         /// The element this element inherits its transformation from. Null if this element is directly in a context.
         /// </summary>
         public ElementPrototype Parent { get; set; }
+
+        /// <summary>
+        /// Notify Notui context that this element is changed.
+        /// </summary>
+        public bool IsChanged { get; set; }
 
         /// <summary>
         /// Elements which will inherit the transformation of this element
