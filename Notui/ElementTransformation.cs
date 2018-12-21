@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
+using md.stdl.Coding;
 using md.stdl.Interfaces;
 using md.stdl.Mathematics;
 using Matrix4x4 = System.Numerics.Matrix4x4;
@@ -62,7 +64,7 @@ namespace Notui
         /// Scale of the element relative to its parent possibly in 3D world
         /// </summary>
         public Vector3 Scale
-        {
+        { 
             get => _scale;
             set
             {
@@ -213,9 +215,10 @@ namespace Notui
         /// </remarks>
         public void SubscribeToChange(string id, Action<ElementTransformation> action)
         {
-            if (_onChangeActions.ContainsKey(id))
-                _onChangeActions[id] = action;
-            else _onChangeActions.Add(id, action);
+            lock (_onChangeActions)
+            {
+                _onChangeActions.UpdateGeneric(id, action);
+            }
         }
 
         /// <summary>
@@ -224,15 +227,21 @@ namespace Notui
         /// <param name="id">a unique id of the subscriber</param>
         public void UnsubscribeFromChange(string id)
         {
-            if (_onChangeActions.ContainsKey(id))
-                _onChangeActions.Remove(id);
+            lock (_onChangeActions)
+            {
+                if (_onChangeActions.ContainsKey(id))
+                    _onChangeActions.Remove(id);
+            }
         }
 
         private void InvokeChange()
         {
-            foreach (var action in _onChangeActions.Values)
+            lock (_onChangeActions)
             {
-                action(this);
+                foreach (var action in _onChangeActions.Values.ToArray())
+                {
+                    action(this);
+                }
             }
         }
 

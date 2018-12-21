@@ -464,7 +464,7 @@ namespace Notui
                 }
             }
 
-            var input = UpdateOnlyChangeFlagged ? elements.Where(prot => prot.IsChanged) : elements;
+            var input = UpdateOnlyChangeFlagged ? elements.Where(prot => prot.IsChanged > 0) : elements;
 
             foreach (var el in input)
             {
