@@ -128,9 +128,9 @@ namespace Notui
         public ElementPrototype Parent { get; set; }
 
         /// <summary>
-        /// Notify Notui context that this element is changed.
+        /// Notify Notui context that this element is changed when this property is above 0.
         /// </summary>
-        public bool IsChanged { get; set; }
+        public int IsChanged { get; set; }
 
         /// <summary>
         /// Elements which will inherit the transformation of this element
