@@ -7,8 +7,6 @@ using System.Reactive;
 using System.Reactive.Linq;
 using System.Windows;
 using System.Windows.Forms;
-using System.Windows.Media;
-using System.Windows.Media.Animation;
 using md.stdl.Interaction;
 using md.stdl.Interfaces;
 using md.stdl.Time;
@@ -18,6 +16,28 @@ using Matrix4x4 = System.Numerics.Matrix4x4;
 
 namespace Notui
 {
+    /// <summary>
+    /// Enum indicating the current visibility state of an element. You can combine flags regarding what state you're listening to.
+    /// </summary>
+    [Flags]
+    public enum ElementFadeState
+    {
+        /// <summary>Element invisible</summary>
+        Hidden = 1,
+        /// <summary>Element is waiting to be faded in or out respecting delays</summary>
+        Waiting = 16,
+        /// <summary>Element Fading in</summary>
+        FadingIn = 2,
+        /// <summary>Element is waiting to be faded in respecting delays</summary>
+        WaitingForFadeIn = Hidden | FadingIn | Waiting,
+        /// <summary>Element visible</summary>
+        Visible = 4,
+        /// <summary>Element Fading out</summary>
+        FadingOut = 8,
+        /// <summary>Element is waiting to be faded out respecting delays</summary>
+        WaitingForFadeOut = Visible | FadingOut | Waiting
+    }
+
     /// <inheritdoc />
     /// <summary>
     /// Event args involving touches
@@ -53,25 +73,15 @@ namespace Notui
     /// </summary>
     public abstract class NotuiElement : DependencyObject, IElementCommon, ICloneable<NotuiElement>, IUpdateable<ElementPrototype>, IMainlooping
     {
-        /// <summary></summary>
-        public static readonly DependencyProperty RawFadeInProgressProperty = DependencyProperty.Register(
-            "RawFadeInProgress",
-            typeof(double),
-            typeof(NotuiElement)
-        );
-
-        /// <summary></summary>
-        public static readonly DependencyProperty RawFadeOutProgressProperty = DependencyProperty.Register(
-            "RawFadeOutProgress",
-            typeof(double),
-            typeof(NotuiElement)
-        );
-
         private Matrix4x4 _displayMatrix;
         private Matrix4x4 _invDisplayMatrix;
         private bool _onFadedInInvoked;
         private SubContext _subContext;
-        
+        private double _rawFadeProgress;
+        private double _absFadeProgress;
+        private bool _fadingCancelled;
+        private bool _fadingCancelledFrame;
+
         /// <inheritdoc />
         public string Name { get; set; }
         /// <inheritdoc />
@@ -80,7 +90,6 @@ namespace Notui
         public float FadeOutTime { get; set; }
         /// <inheritdoc />
         public float FadeInTime { get; set; }
-
         /// <inheritdoc />
         public float FadeOutDelay { get; set; }
 
@@ -92,7 +101,7 @@ namespace Notui
         /// <summary>
         /// Time it takes to completely fade out the element
         /// </summary>
-        public float AbsoluteFadeOutTime => AbsoluteFadeOutDelay + FadeOutDelay;
+        public float AbsoluteFadeOutTime => AbsoluteFadeOutDelay + FadeOutTime;
 
         /// <inheritdoc />
         public float FadeInDelay { get; set; }
@@ -105,7 +114,7 @@ namespace Notui
         /// <summary>
         /// Time it takes to completely fade in the element
         /// </summary>
-        public float AbsoluteFadeInTime => AbsoluteFadeInDelay + FadeInDelay;
+        public float AbsoluteFadeInTime => AbsoluteFadeInDelay + FadeInTime;
 
         /// <inheritdoc />
         public float TransformationFollowTime { get; set; }
@@ -162,41 +171,6 @@ namespace Notui
         public double ElementFade { get; set; }
 
         /// <summary>
-        /// 0 to 1 progress of Fadein including delays
-        /// </summary>
-        public double RawFadeInProgress
-        {
-            get => (double) GetValue(RawFadeInProgressProperty);
-            set => SetValue(RawFadeInProgressProperty, value);
-        }
-
-        /// <summary>
-        /// 0 at element faded out, 1 at faded in, respecting delays
-        /// </summary>
-        public double FadeInProgress => VMath.Map(RawFadeInProgress * AbsoluteFadeInTime, AbsoluteFadeInDelay, AbsoluteFadeInTime, 0.0, 1.0, TMapMode.Clamp);
-
-        /// <summary>
-        /// Animation driving the fadein;
-        /// </summary>
-        public DoubleAnimation FadeInAnimation { get; private set; }
-
-        /// <summary>
-        /// 0 to 1 progress of Fadeout including delays
-        /// </summary>
-        public double RawFadeOutProgress
-        {
-            get => (double)GetValue(RawFadeOutProgressProperty);
-            set => SetValue(RawFadeOutProgressProperty, value);
-        }
-
-        /// <summary>
-        /// 0 at element faded in, 1 at faded out, respecting delays
-        /// </summary>
-        public double FadeOutProgress => VMath.Map(RawFadeOutProgress * AbsoluteFadeOutTime, AbsoluteFadeOutDelay, AbsoluteFadeOutTime, 0.0, 1.0, TMapMode.Clamp);
-
-        public DoubleAnimation FadeOutAnimation { get; private set; }
-
-        /// <summary>
         /// List of touches interacting with this element which is managed by this element
         /// </summary>
         public ConcurrentDictionary<Touch, IntersectionPoint> Touching { get; set; } =
@@ -235,9 +209,9 @@ namespace Notui
         public bool Dying { get; set; }
 
         /// <summary>
-        /// True while fading in.
+        /// Indicating current state of the element fading
         /// </summary>
-        public bool FadingIn { get; set; }
+        public ElementFadeState FadingState { get; set; }
 
         /// <summary>
         /// Element age since creation
@@ -519,17 +493,9 @@ namespace Notui
         /// </summary>
         protected virtual void MainloopEnd() { }
 
-        /// <summary>
-        /// This is called every frame by the context
-        /// </summary>
-        /// <remarks>
-        /// The context call this function of all flattened elements in parallel regardless of the element hierarchy, you should take this into account when overriding this function or developing behaviors. You MUST NOT call the Mainloop method of the children elements yourself because the context already does so (unless you are really desperate).
-        /// </remarks>
-        public void Mainloop(float deltatime)
+        private void MainloopRemoveSuicidalChildren()
         {
-            OnMainLoopBegin?.Invoke(this, EventArgs.Empty);
-
-            if(Children.Count > 0)
+            if (Children.Count > 0)
             {
                 foreach (var child in Children.Values.ToArray())
                 {
@@ -540,22 +506,21 @@ namespace Notui
                     }
                 }
             }
-            
-            DisplayTransformation.SubscribeToChange(Id, transformation => InvalidateMatrices());
+        }
 
-            MainloopBegin();
-
-            var endtouches = ( from touch in Touching.Keys
-                where touch.ExpireFrames > Context.ConsiderReleasedAfter || !touch.Pressed
-                select touch
+        private void MainloopProcessTouches()
+        {
+            var endtouches = (from touch in Touching.Keys
+                    where touch.ExpireFrames > Context.ConsiderReleasedAfter || !touch.Pressed
+                    select touch
                 ).ToArray();
 
             foreach (var touch in endtouches)
                 FireTouchEnd(touch);
 
-            var endhits = ( from touch in Hitting.Keys
-                where touch.ExpireFrames > Context.ConsiderReleasedAfter
-                select touch
+            var endhits = (from touch in Hitting.Keys
+                    where touch.ExpireFrames > Context.ConsiderReleasedAfter
+                    select touch
                 ).ToArray();
 
             foreach (var touch in endhits)
@@ -579,20 +544,89 @@ namespace Notui
                 if (Touching.ContainsKey(touch))
                     Touching[touch] = inters;
             }
+        }
 
-            if (AbsoluteFadeInTime > 0 && AbsoluteFadeOutTime > 0)
+        private void MainloopProcessFade(float deltatime)
+        {
+            if ((FadingState & ElementFadeState.FadingIn) > 0 && AbsoluteFadeInTime > 0)
             {
-                ElementFade = VMath.Clamp(FadeInProgress - FadeOutProgress, 0.0, 1.0);
-            }
-            else if (AbsoluteFadeInTime > 0)
-            {
-                ElementFade = VMath.Clamp(FadeInProgress, 0.0, 1.0);
-            }
-            else if (AbsoluteFadeOutTime > 0)
-            {
-                ElementFade = VMath.Clamp(1.0 - FadeOutProgress, 0.0, 1.0);
+                if (_fadingCancelled)
+                {
+                    if (_fadingCancelledFrame) _rawFadeProgress = ElementFade;
+                    var delta = deltatime / FadeInTime;
+                    _rawFadeProgress += delta;
+                    ElementFade = _rawFadeProgress;
+                }
+                else
+                {
+                    var delta = deltatime / AbsoluteFadeInTime;
+                    _rawFadeProgress += delta;
+                    _absFadeProgress = _rawFadeProgress * AbsoluteFadeInTime - AbsoluteFadeInDelay;
+
+                    ElementFade = VMath.Map(
+                        _absFadeProgress,
+                        0.0, FadeInTime,
+                        0.0, 1.0,
+                        TMapMode.Clamp);
+                }
+
+                FadingState = _absFadeProgress < 0 ? ElementFadeState.WaitingForFadeIn : ElementFadeState.FadingIn;
+
+                if (_rawFadeProgress >= 1)
+                {
+                    _rawFadeProgress = 1;
+                    ElementFade = 1;
+                    FadingState = ElementFadeState.Visible;
+                    _fadingCancelled = false;
+
+                    Dying = false;
+                    OnFadedIn?.Invoke(this, EventArgs.Empty);
+                }
             }
 
+            if ((FadingState & ElementFadeState.FadingOut) > 0 && AbsoluteFadeOutTime > 0)
+            {
+                if (_fadingCancelled)
+                {
+                    if(_fadingCancelledFrame) _rawFadeProgress = ElementFade;
+                    var delta = deltatime / FadeOutTime;
+                    _rawFadeProgress -= delta;
+                    ElementFade = _rawFadeProgress;
+                }
+                else
+                {
+                    var delta = deltatime / AbsoluteFadeOutTime;
+                    _rawFadeProgress -= delta;
+                    _absFadeProgress = _rawFadeProgress * AbsoluteFadeOutTime;
+
+                    ElementFade = VMath.Map(
+                        _absFadeProgress,
+                        0.0, FadeOutTime,
+                        0.0, 1.0,
+                        TMapMode.Clamp);
+                }
+
+                FadingState = _absFadeProgress > FadeOutTime ? ElementFadeState.WaitingForFadeOut : ElementFadeState.FadingOut;
+
+                if (_rawFadeProgress <= 0)
+                {
+                    _rawFadeProgress = 0;
+                    ElementFade = 0;
+                    FadingState = ElementFadeState.Hidden;
+                    _fadingCancelled = false;
+
+                    OnDeleting?.Invoke(this, EventArgs.Empty);
+                    DeleteMe = true;
+                }
+            }
+
+            _fadingCancelledFrame = false;
+            if (FadingState == ElementFadeState.Visible) ElementFade = 1;
+            if (FadingState == ElementFadeState.Hidden) ElementFade = 0;
+        }
+
+        private void MainloopProcessMice()
+        {
             Mice = Touching.Keys.Where(t => t.AttachadMouse != null)
                 .Concat(Hitting.Keys.Where(t => t.AttachadMouse != null)).Distinct().ToArray();
 
@@ -622,7 +656,7 @@ namespace Notui
                     if (tmouse.MouseDelta.MouseClicks.Values.Any(mc => mc.ButtonDown)) buttonpressed = true;
                     if (tmouse.MouseDelta.MouseClicks.Values.Any(mc => mc.ButtonUp)) buttonreleased = true;
                 }
-                
+
                 if (vscrolled)
                 {
                     foreach (var touch in Mice.Where(mt => mt.MouseDelta.AccumulatedWheelDelta != 0))
@@ -664,6 +698,29 @@ namespace Notui
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// This is called every frame by the context
+        /// </summary>
+        /// <remarks>
+        /// The context call this function of all flattened elements in parallel regardless of the element hierarchy, you should take this into account when overriding this function or developing behaviors. You MUST NOT call the Mainloop method of the children elements yourself because the context already does so (unless you are really desperate).
+        /// </remarks>
+        public void Mainloop(float deltatime)
+        {
+            OnMainLoopBegin?.Invoke(this, EventArgs.Empty);
+
+            MainloopRemoveSuicidalChildren();
+            
+            DisplayTransformation.SubscribeToChange(Id, transformation => InvalidateMatrices());
+
+            MainloopBegin();
+
+            MainloopProcessTouches();
+
+            MainloopProcessFade(deltatime);
+
+            MainloopProcessMice();
 
             if (TransformationFollowTime > 0)
             {
@@ -714,13 +771,10 @@ namespace Notui
 
             if (Dying)
             {
-                var fadeoutcancelanim = new DoubleAnimation(0.0, new Duration(TimeSpan.FromSeconds(AbsoluteFadeInTime)));
-                fadeoutcancelanim.Completed += (sender, args) =>
-                {
-                    OnFadedIn?.Invoke(this, EventArgs.Empty);
-                };
+                _fadingCancelled = true;
+                _fadingCancelledFrame = true;
+                FadingState = ElementFadeState.FadingIn;
                 Dying = false;
-                fadeoutcancelanim.BeginAnimation(RawFadeOutProgressProperty, null, HandoffBehavior.SnapshotAndReplace);
             }
 
             UpdateChildren(true, other.Children.Values.ToArray());
@@ -749,8 +803,16 @@ namespace Notui
                 Children.Add(child.Id, newchild);
             }
 
-            InitializeFadeInAnim();
-            InitializeFadeOutAnim();
+            if (AbsoluteFadeInTime > 0)
+            {
+                FadingState = ElementFadeState.FadingIn;
+                _rawFadeProgress = 0;
+            }
+            else
+            {
+                FadingState = ElementFadeState.Visible;
+                _rawFadeProgress = 1;
+            }
 
             Age.Start();
 
@@ -759,28 +821,7 @@ namespace Notui
                 SubContext = new SubContext(this, prototype.SubContextOptions);
             }
         }
-
-        private void InitializeFadeInAnim()
-        {
-            FadeInAnimation = new DoubleAnimation(1.0, new Duration(TimeSpan.FromSeconds(AbsoluteFadeInDelay + FadeInTime)));
-            FadeInAnimation.Completed += (sender, args) =>
-            {
-                Dying = false;
-                DeleteMe = false;
-                OnFadedIn?.Invoke(this, EventArgs.Empty);
-            };
-            FadeInAnimation.BeginAnimation(RawFadeInProgressProperty, null, HandoffBehavior.SnapshotAndReplace);
-        }
-
-        private void InitializeFadeOutAnim()
-        {
-            FadeOutAnimation = new DoubleAnimation(1.0, new Duration(TimeSpan.FromSeconds(AbsoluteFadeOutDelay + FadeOutTime)));
-            FadeOutAnimation.Completed += (sender, args) =>
-            {
-                OnDeleting?.Invoke(this, EventArgs.Empty);
-                if(Dying) DeleteMe = true;
-            };
-        }
+        
 
         /// <summary>
         /// Override to modify the behavior how interaction should begin
@@ -844,30 +885,23 @@ namespace Notui
         /// <summary>
         /// Override to modify how element should be deleted
         /// </summary>
-        protected void Delete()
+        protected virtual void Delete()
         {
             if (AbsoluteFadeOutTime > 0)
             {
-                if (FadingIn)
+                if ((FadingState & ElementFadeState.FadingIn) > 0)
                 {
-                    var fadeincancelanim =  new DoubleAnimation(0.0, new Duration(TimeSpan.FromSeconds(AbsoluteFadeOutDelay)));
-                    fadeincancelanim.Completed += (sender, args) =>
-                    {
-                        OnDeleting?.Invoke(this, EventArgs.Empty);
-                        if (Dying) DeleteMe = true;
-                    };
-                    fadeincancelanim.BeginAnimation(RawFadeInProgressProperty, null, HandoffBehavior.SnapshotAndReplace);
+                    _fadingCancelled = true;
+                    _fadingCancelledFrame = true;
                 }
-                else
-                {
-                    FadeOutAnimation.BeginAnimation(RawFadeOutProgressProperty, null, HandoffBehavior.SnapshotAndReplace);
-                }
+                FadingState = ElementFadeState.FadingOut;
                 OnDeletionStarted?.Invoke(this, EventArgs.Empty);
                 Dying = true;
             }
             else
             {
                 OnDeleting?.Invoke(this, EventArgs.Empty);
+                FadingState = ElementFadeState.Hidden;
                 DeleteMe = true;
                 Dying = true;
             }
